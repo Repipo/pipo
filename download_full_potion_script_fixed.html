@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Скачать исправленный скрипт алхимического котла</title>
+  <style>
+    body { font-family: Arial, sans-serif; max-width: 780px; margin: 48px auto; padding: 0 20px; background: #111; color: #eee; }
+    button { font-size: 18px; padding: 14px 22px; cursor: pointer; }
+    #status { margin-top: 18px; white-space: pre-wrap; color: #ccc; }
+    code { color: #ffd76a; }
+  </style>
+</head>
+<body>
+  <h1>Алхимический котёл — исправленная сборка</h1>
+  <p>Страница скачает полный файл <code>Алхимический_котел_ИСПРАВЛЕННЫЙ.txt</code>.</p>
+  <button id="download">Скачать полный TXT</button>
+  <div id="status">Подготовка…</div>
+
+<script>
+const GENERATOR_URL = 'https://raw.githubusercontent.com/Repipo/pipo/main/download_full_potion_script.html';
+const SOURCE_URL = 'https://raw.githubusercontent.com/Repipo/pipo/main/%D0%90%D0%BB%D1%85%D0%B8%D0%BC%D0%B8%D1%87%D0%B5%D1%81%D0%BA%D0%B8%D0%B9_%D0%BA%D0%BE%D1%82%D0%B5%D0%BB_%D1%80%D0%B2%D0%BE%D1%82%D0%BD%D0%BE%D0%B5_%D0%B7%D0%B5%D0%BB%D1%8C%D0%B5_%D0%B8_%D0%B0%D1%84%D1%80%D0%BE%D0%B4%D0%B8%D0%B7%D0%B8%D0%B0%D0%BA.txt';
+const OUTPUT_NAME = 'Алхимический_котел_ИСПРАВЛЕННЫЙ.txt';
+
+function extractTemplate(text, startMarker, endMarker) {
+  const start = text.indexOf(startMarker);
+  if (start < 0) throw new Error('Не найден блок: ' + startMarker);
+  const contentStart = start + startMarker.length;
+  const end = text.indexOf(endMarker, contentStart);
+  if (end < 0) throw new Error('Не найден конец блока: ' + endMarker);
+  return text.slice(contentStart, end);
+}
+
+function replaceBetween(text, startMarker, endMarker, replacement) {
+  const start = text.indexOf(startMarker);
+  if (start < 0) throw new Error('Не найден маркер начала: ' + startMarker.split('\n').pop());
+  const end = text.indexOf(endMarker, start);
+  if (end < 0) throw new Error('Не найден маркер конца: ' + endMarker.split('\n').pop());
+  return text.slice(0, start) + replacement + text.slice(end);
+}
+
+function ensureEventCall(text, functionName) {
+  const start = text.indexOf('function ' + functionName + '(event)');
+  if (start < 0) throw new Error('Не найдена функция ' + functionName);
+  const end = text.indexOf('\n}', start) + 2;
+  let block = text.slice(start, end);
+
+  if (!block.includes('playerObject.processSpecialPotionEffects();')) {
+    block = block.replace(
+      '  playerObject.processPendingDrops();\n}',
+      '  playerObject.processPendingDrops();\n  playerObject.processSpecialPotionEffects();\n}'
+    );
+  }
+
+  if (!block.includes('playerObject.processSpecialPotionEffects();')) {
+    throw new Error('Не удалось добавить обработку зелий в ' + functionName);
+  }
+
+  return text.slice(0, start) + block + text.slice(end);
+}
+
+async function getText(url, title) {
+  const response = await fetch(url, { cache: 'no-store' });
+  if (!response.ok) throw new Error('Не удалось загрузить ' + title + ': HTTP ' + response.status);
+  return await response.text();
+}
+
+async function buildAndDownload() {
+  const status = document.getElementById('status');
+  const button = document.getElementById('download');
+  button.disabled = true;
+  status.textContent = 'Загружаю полный исходник и исправления…';
+
+  try {
+    const generatorText = await getText(GENERATOR_URL, 'блоки исправлений');
+    const sourceText = await getText(SOURCE_URL, 'исходный скрипт');
+
+    const newRecipes = extractTemplate(
+      generatorText,
+      'const NEW_RECIPES = `',
+      '`;\n\nconst NEW_HANDLER'
+    );
+
+    const newHandler = extractTemplate(
+      generatorText,
+      'const NEW_HANDLER = `',
+      '`;\n\nfunction replaceBetween'
+    );
+
+    let text = sourceText;
+
+    text = replaceBetween(
+      text,
+      '  // ============================================\n  // НОВОЕ: РВОТНАЯ НАСТОЙКА',
+      '  // ============================================\n  // СЛАБЫЕ РЕЦЕПТЫ',
+      newRecipes
+    );
+
+    text = replaceBetween(
+      text,
+      '  // ============================================\n  // НОВОЕ: РВОТА И АФРОДИЗИАК',
+      '  // ============================================\n  // ВЫДАЧА РЕЗУЛЬТАТОВ',
+      newHandler
+    );
+
+    text = ensureEventCall(text, 'tick');
+    text = ensureEventCall(text, 'timer');
+
+    const required = [
+      "'Рвотная настойка'",
+      "'Афродизиак'",
+      'HideFlags:32',
+      'herbalistmod:delirium 120 1 true',
+      'playerObject.processSpecialPotionEffects();',
+      'this.processSpecialPotionEffects = function',
+      'this.processAphrodisiacPotion = function'
+    ];
+
+    for (const value of required) {
+      if (!text.includes(value)) throw new Error('Проверка не пройдена: ' + value);
+    }
+
+    const blob = new Blob(['\ufeff', text], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = OUTPUT_NAME;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+
+    status.textContent = 'Готово. Полный исправленный TXT скачан.';
+  } catch (error) {
+    console.error(error);
+    status.textContent = 'Ошибка: ' + error.message;
+  } finally {
+    button.disabled = false;
+  }
+}
+
+document.getElementById('download').addEventListener('click', buildAndDownload);
+window.addEventListener('load', () => setTimeout(buildAndDownload, 500));
+</script>
+</body>
+</html>
