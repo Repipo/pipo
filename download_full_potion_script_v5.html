@@ -1,0 +1,305 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Алхимический котёл v5</title>
+  <style>
+    body { font-family: Arial, sans-serif; max-width: 820px; margin: 48px auto; padding: 0 20px; background: #111; color: #eee; }
+    button { font-size: 18px; padding: 14px 22px; cursor: pointer; }
+    #status { margin-top: 18px; white-space: pre-wrap; color: #ccc; }
+    code { color: #ffd76a; }
+  </style>
+</head>
+<body>
+  <h1>Алхимический котёл v5</h1>
+  <p>Убрана зависимость от отсутствующей функции <code>resolveMobEffectNumericIdWithoutProbe</code>. ID эффектов теперь берётся напрямую через ForgeRegistries.</p>
+  <button id="download">Скачать полный исправленный TXT</button>
+  <div id="status">Подготовка…</div>
+
+<script>
+const SOURCE_URL = 'https://raw.githubusercontent.com/Repipo/pipo/main/%D0%90%D0%BB%D1%85%D0%B8%D0%BC%D0%B8%D1%87%D0%B5%D1%81%D0%BA%D0%B8%D0%B9_%D0%BA%D0%BE%D1%82%D0%B5%D0%BB_%D1%80%D0%B2%D0%BE%D1%82%D0%BD%D0%BE%D0%B5_%D0%B7%D0%B5%D0%BB%D1%8C%D0%B5_%D0%B8_%D0%B0%D1%84%D1%80%D0%BE%D0%B4%D0%B8%D0%B7%D0%B8%D0%B0%D0%BA.txt';
+const V3_URL = 'https://raw.githubusercontent.com/Repipo/pipo/main/download_full_potion_script_v3.html';
+const OUTPUT_NAME = 'Алхимический_котел_ИСПРАВЛЕННЫЙ_v5.txt';
+
+const NEW_RECIPES = `  // ============================================
+  // РВОТНАЯ НАСТОЙКА
+  // Порядок: гнилая плоть -> ядовитый картофель -> ферментированный паучий глаз
+  // ============================================
+
+  ctx.addRecipe(
+    ctx.createCustomRecipe(
+      'Рвотная настойка',
+      [
+        'minecraft:rotten_flesh',
+        'minecraft:poisonous_potato',
+        'minecraft:fermented_spider_eye',
+      ],
+      1,
+      function (player, ctx) {
+        return ctx.giveVomitPotion(player);
+      },
+      true
+    )
+  );
+
+  // ============================================
+  // АФРОДИЗИАК
+  // Порядок: бутылочка мёда -> сладкие ягоды -> мак
+  // ============================================
+
+  ctx.addRecipe(
+    ctx.createCustomRecipe(
+      'Афродизиак',
+      [
+        'minecraft:honey_bottle',
+        'minecraft:sweet_berries',
+        'minecraft:poppy',
+      ],
+      1,
+      function (player, ctx) {
+        return ctx.giveScriptAphrodisiacPotion(player);
+      },
+      true
+    )
+  );
+
+`;
+
+const FIXED_GIVE_FUNCTIONS = `  this.getMobEffectNumericIdDirect = function (effectId) {
+    try {
+      var ForgeRegistries = Java.type('net.minecraftforge.registries.ForgeRegistries');
+      var ResourceLocation = Java.type('net.minecraft.resources.ResourceLocation');
+      var effect = ForgeRegistries.MOB_EFFECTS.getValue(
+        new ResourceLocation(String(effectId))
+      );
+
+      if (!effect) return -1;
+
+      var numericId = ForgeRegistries.MOB_EFFECTS.getId(effect);
+      if (numericId === undefined || numericId === null) return -1;
+
+      return Number(numericId);
+    } catch (errDirectEffectId) {
+      return -1;
+    }
+  };
+
+  this.giveVomitPotion = function (player) {
+    var deliriumId = this.getMobEffectNumericIdDirect('herbalistmod:delirium');
+
+    if (deliriumId < 0) {
+      player.message('§cНе найден эффект herbalistmod:delirium. Проверь точный ID эффекта.');
+      return false;
+    }
+
+    var resultNbt =
+      '{id:"minecraft:potion",Count:1b,tag:{' +
+      'Potion:"minecraft:water",' +
+      'CustomPotionColor:3555072,' +
+      'HideFlags:32,' +
+      'CustomPotionEffects:[' +
+      '{Id:9,Amplifier:4b,Duration:2400,ShowParticles:0b,ShowIcon:1b},' +
+      '{Id:' + deliriumId + ',Amplifier:1b,Duration:2400,ShowParticles:0b,ShowIcon:1b},' +
+      '{Id:17,Amplifier:1b,Duration:2400,ShowParticles:0b,ShowIcon:0b}' +
+      ']}}';
+
+    return this.giveRecipeResult(
+      player,
+      resultNbt,
+      'Рвотная настойка',
+      'minecraft:block.brewing_stand.brew',
+      '§2'
+    );
+  };
+
+  this.giveScriptAphrodisiacPotion = function (player) {
+    var resultNbt =
+      '{id:"minecraft:potion",Count:1b,tag:{' +
+      'Potion:"minecraft:water",' +
+      'CustomPotionColor:16733695,' +
+      'HideFlags:32,' +
+      'CustomPotionEffects:[' +
+      '{Id:26,Amplifier:7b,Duration:1800,ShowParticles:0b,ShowIcon:0b}' +
+      ']}}';
+
+    return this.giveRecipeResult(
+      player,
+      resultNbt,
+      'Афродизиак',
+      'minecraft:block.brewing_stand.brew',
+      '§d'
+    );
+  };
+
+`;
+
+const FIXED_EFFECT_DETECTOR = `  this.readScriptEffectAmplifier = function (entry) {
+    if (!entry) return -1;
+
+    try { return entry.getInt('Amplifier'); } catch (err1) {}
+    try { return entry.getByte('Amplifier'); } catch (err2) {}
+    try { return entry.getInt('amplifier'); } catch (err3) {}
+    try { return entry.getByte('amplifier'); } catch (err4) {}
+
+    return -1;
+  };
+
+  this.hasRegisteredEffect = function (effectId, requiredAmplifier) {
+    try {
+      var numericId = this.getMobEffectNumericIdDirect(effectId);
+      var list = this.getEffectListFromEntityNbt(this.player.getEntityNbt());
+      if (!list) return false;
+
+      for (var i = 0; i < list.size(); i++) {
+        var entry = list.get(i);
+        var matches = this.effectEntryMatchesId(entry, effectId);
+
+        if (!matches && numericId >= 0) {
+          matches = this.readNumericIdFromEffectEntry(entry) === numericId;
+        }
+
+        if (!matches) continue;
+
+        if (requiredAmplifier === undefined || requiredAmplifier === null) {
+          return true;
+        }
+
+        if (this.readScriptEffectAmplifier(entry) === requiredAmplifier) {
+          return true;
+        }
+      }
+    } catch (errHasEffect) {}
+
+    return false;
+  };
+
+`;
+
+function extractTemplate(html, name) {
+  const marker = 'const ' + name + ' = `';
+  const start = html.indexOf(marker);
+  if (start < 0) throw new Error('Не найден блок ' + name);
+  const contentStart = start + marker.length;
+  const end = html.indexOf('`;\n', contentStart);
+  if (end < 0) throw new Error('Не найден конец блока ' + name);
+  return html.slice(contentStart, end);
+}
+
+function replaceBetween(text, startMarker, endMarker, replacement) {
+  const start = text.indexOf(startMarker);
+  if (start < 0) throw new Error('Не найден маркер начала: ' + startMarker.split('\n').pop());
+  const end = text.indexOf(endMarker, start);
+  if (end < 0) throw new Error('Не найден маркер конца: ' + endMarker.split('\n').pop());
+  return text.slice(0, start) + replacement + text.slice(end);
+}
+
+function ensureEventCall(text, functionName) {
+  const start = text.indexOf('function ' + functionName + '(event)');
+  if (start < 0) throw new Error('Не найдена функция ' + functionName);
+  const end = text.indexOf('\n}', start) + 2;
+  let block = text.slice(start, end);
+
+  if (!block.includes('playerObject.processSpecialPotionEffects();')) {
+    block = block.replace(
+      '  playerObject.processPendingDrops();\n}',
+      '  playerObject.processPendingDrops();\n  playerObject.processSpecialPotionEffects();\n}'
+    );
+  }
+
+  return text.slice(0, start) + block + text.slice(end);
+}
+
+async function buildAndDownload() {
+  const status = document.getElementById('status');
+  const button = document.getElementById('download');
+  button.disabled = true;
+  status.textContent = 'Собираю полный исправленный Player Script…';
+
+  try {
+    const [sourceResponse, v3Response] = await Promise.all([
+      fetch(SOURCE_URL, { cache: 'no-store' }),
+      fetch(V3_URL, { cache: 'no-store' })
+    ]);
+
+    if (!sourceResponse.ok) throw new Error('Не удалось загрузить исходник: HTTP ' + sourceResponse.status);
+    if (!v3Response.ok) throw new Error('Не удалось загрузить обработчик эффектов: HTTP ' + v3Response.status);
+
+    let text = await sourceResponse.text();
+    const v3Html = await v3Response.text();
+    let handler = extractTemplate(v3Html, 'NEW_HANDLER');
+
+    const giveStart = handler.indexOf('  this.giveVomitPotion = function (player) {');
+    const detectorStart = handler.indexOf('  this.hasRegisteredEffect = function', giveStart);
+    const visualsStart = handler.indexOf('  this.startVomitVisuals = function', detectorStart);
+
+    if (giveStart < 0 || detectorStart < 0 || visualsStart < 0) {
+      throw new Error('Не удалось найти функции выдачи или проверки эффектов.');
+    }
+
+    handler =
+      handler.slice(0, giveStart) +
+      FIXED_GIVE_FUNCTIONS +
+      FIXED_EFFECT_DETECTOR +
+      handler.slice(visualsStart);
+
+    text = replaceBetween(
+      text,
+      '  // ============================================\n  // НОВОЕ: РВОТНАЯ НАСТОЙКА',
+      '  // ============================================\n  // СЛАБЫЕ РЕЦЕПТЫ',
+      NEW_RECIPES
+    );
+
+    text = replaceBetween(
+      text,
+      '  // ============================================\n  // НОВОЕ: РВОТА И АФРОДИЗИАК',
+      '  // ============================================\n  // ВЫДАЧА РЕЗУЛЬТАТОВ',
+      handler
+    );
+
+    text = ensureEventCall(text, 'tick');
+    text = ensureEventCall(text, 'timer');
+
+    if (text.includes('resolveMobEffectNumericIdWithoutProbe(')) {
+      throw new Error('В итоговом файле остался вызов отсутствующей функции.');
+    }
+
+    const required = [
+      'this.getMobEffectNumericIdDirect = function',
+      "ForgeRegistries.MOB_EFFECTS.getId(effect)",
+      "'herbalistmod:delirium'",
+      '{Id:9,Amplifier:4b,Duration:2400',
+      "'{Id:' + deliriumId",
+      '{Id:26,Amplifier:7b,Duration:1800',
+      'return this.giveRecipeResult(',
+      'playerObject.processSpecialPotionEffects();'
+    ];
+
+    for (const value of required) {
+      if (!text.includes(value)) throw new Error('Проверка не пройдена: ' + value);
+    }
+
+    const blob = new Blob(['\ufeff', text], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = OUTPUT_NAME;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+
+    status.textContent = 'Готово. Файл скачан. Отсутствующая функция больше не используется.';
+  } catch (error) {
+    console.error(error);
+    status.textContent = 'Ошибка: ' + error.message;
+  } finally {
+    button.disabled = false;
+  }
+}
+
+document.getElementById('download').addEventListener('click', buildAndDownload);
+window.addEventListener('load', () => setTimeout(buildAndDownload, 400));
+</script>
+</body>
+</html>
