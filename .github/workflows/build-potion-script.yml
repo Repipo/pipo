@@ -3,7 +3,7 @@ name: Build full potion script
 on:
   push:
     paths:
-      - '.github/workflows/build-potion-script.yml'
+      - 'build.trigger'
   workflow_dispatch:
 
 permissions:
@@ -21,397 +21,330 @@ jobs:
         run: |
           python3 - <<'PY'
           from pathlib import Path
-          import re
 
           source = Path('Алхимический_котел_рвотное_зелье_и_афродизиак.txt')
           output = Path('Алхимический_котел_рвотная_настойка_и_скриптовый_афродизиак.txt')
           text = source.read_text(encoding='utf-8')
 
-          old_header = """// ============================================
-          // Custom NPCs 1.20.1 — Алхимический котёл
-          // Полный файл для замены Player Script.
-          //
-          // Добавлены:
-          // 1) Рвотная настойка — тошнота, голод, приступы рвоты,
-          //    зелёные частицы, звуки и резкие повороты головы.
-          // 2) Афродизиак — эффект Sweet Heart из Brewin' and Chewin'
-          //    и периодические частицы сердец.
-          //
-          // ВАЖНО: порядок ингредиентов в рецептах имеет значение.
-          // ============================================"""
+          recipe_start_marker = "  // ============================================\n  // НОВОЕ: РВОТНАЯ НАСТОЙКА"
+          recipe_end_marker = "  // ============================================\n  // СЛАБЫЕ РЕЦЕПТЫ"
 
-          new_header = """// ============================================
-          // Custom NPCs 1.20.1 — Алхимический котёл
-          // Полный файл для полной замены Player Script.
-          //
-          // Рвотная настойка:
-          // - эффекты не показываются в описании предмета;
-          // - сильная тошнота на 120 секунд;
-          // - herbalistmod:delirium на 120 секунд;
-          // - приступы рвоты, звуки и резкие повороты головы.
-          //
-          // Афродизиак:
-          // - полностью скриптовый, без Brewin' and Chewin';
-          // - действует 90 секунд;
-          // - сердца, розовые частицы, лепестки, звуки и RP-сообщения.
-          //
-          // ВАЖНО: порядок ингредиентов в рецептах имеет значение.
-          // ============================================"""
-
-          text = text.replace(old_header, new_header, 1)
-
-          recipes_pattern = re.compile(
-              r"  // ============================================\n"
-              r"  // НОВОЕ: РВОТНАЯ НАСТОЙКА.*?"
-              r"  // ============================================\n"
-              r"  // НОВОЕ: АФРОДИЗИАК.*?"
-              r"  \);\n",
-              re.S,
-          )
+          recipe_start = text.index(recipe_start_marker)
+          recipe_end = text.index(recipe_end_marker, recipe_start)
 
           new_recipes = r'''  // ============================================
-          // РВОТНАЯ НАСТОЙКА
-          // Порядок:
-          // 1. Гнилая плоть
-          // 2. Ядовитый картофель
-          // 3. Ферментированный паучий глаз
-          //
-          // В описании предмета эффекты скрыты через HideFlags:32.
-          // Короткая скрытая метка запускает долгие скриптовые эффекты.
-          // ============================================
+  // РВОТНАЯ НАСТОЙКА
+  // Порядок: гнилая плоть -> ядовитый картофель -> ферментированный паучий глаз
+  // Эффекты в подсказке предмета скрыты через HideFlags:32.
+  // ============================================
 
-          ctx.addRecipe(
-            ctx.createCustomRecipe(
-              'Рвотная настойка',
-              [
-                'minecraft:rotten_flesh',
-                'minecraft:poisonous_potato',
-                'minecraft:fermented_spider_eye',
-              ],
-              1,
-              function (player, ctx) {
-                var vomitPotionNbt =
-                  '{id:"minecraft:potion",Count:1b,tag:{' +
-                  'Potion:"minecraft:water",' +
-                  'CustomPotionColor:3555072,' +
-                  'HideFlags:32,' +
-                  'CustomPotionEffects:[' +
-                  '{Id:27b,Amplifier:31b,Duration:60,ShowParticles:0b,ShowIcon:0b}' +
-                  ']}}';
+  ctx.addRecipe(
+    ctx.createCustomRecipe(
+      'Рвотная настойка',
+      [
+        'minecraft:rotten_flesh',
+        'minecraft:poisonous_potato',
+        'minecraft:fermented_spider_eye',
+      ],
+      1,
+      function (player, ctx) {
+        var vomitPotionNbt =
+          '{id:"minecraft:potion",Count:1b,tag:{' +
+          'Potion:"minecraft:water",' +
+          'CustomPotionColor:3555072,' +
+          'HideFlags:32,' +
+          'CustomPotionEffects:[' +
+          '{Id:27b,Amplifier:31b,Duration:60,ShowParticles:0b,ShowIcon:0b}' +
+          ']}}';
 
-                return ctx.giveRecipeResult(
-                  player,
-                  vomitPotionNbt,
-                  'Рвотная настойка',
-                  'minecraft:item.bottle.fill',
-                  '§2'
-                );
-              },
-              true
-            )
-          );
+        return ctx.giveRecipeResult(
+          player,
+          vomitPotionNbt,
+          'Рвотная настойка',
+          'minecraft:item.bottle.fill',
+          '§2'
+        );
+      },
+      true
+    )
+  );
 
-          // ============================================
-          // АФРОДИЗИАК
-          // Порядок:
-          // 1. Бутылочка мёда
-          // 2. Сладкие ягоды
-          // 3. Мак
-          //
-          // Работает полностью скриптово, без Brewin' and Chewin'.
-          // ============================================
+  // ============================================
+  // АФРОДИЗИАК
+  // Порядок: бутылочка мёда -> сладкие ягоды -> мак
+  // Полностью скриптовый, Brewin' and Chewin' не требуется.
+  // ============================================
 
-          ctx.addRecipe(
-            ctx.createCustomRecipe(
-              'Афродизиак',
-              [
-                'minecraft:honey_bottle',
-                'minecraft:sweet_berries',
-                'minecraft:poppy',
-              ],
-              1,
-              function (player, ctx) {
-                var aphroPotionNbt =
-                  '{id:"minecraft:potion",Count:1b,tag:{' +
-                  'Potion:"minecraft:water",' +
-                  'CustomPotionColor:16733695,' +
-                  'HideFlags:32,' +
-                  'CustomPotionEffects:[' +
-                  '{Id:26b,Amplifier:31b,Duration:60,ShowParticles:0b,ShowIcon:0b}' +
-                  ']}}';
+  ctx.addRecipe(
+    ctx.createCustomRecipe(
+      'Афродизиак',
+      [
+        'minecraft:honey_bottle',
+        'minecraft:sweet_berries',
+        'minecraft:poppy',
+      ],
+      1,
+      function (player, ctx) {
+        var aphroPotionNbt =
+          '{id:"minecraft:potion",Count:1b,tag:{' +
+          'Potion:"minecraft:water",' +
+          'CustomPotionColor:16733695,' +
+          'HideFlags:32,' +
+          'CustomPotionEffects:[' +
+          '{Id:26b,Amplifier:31b,Duration:60,ShowParticles:0b,ShowIcon:0b}' +
+          ']}}';
 
-                return ctx.giveRecipeResult(
-                  player,
-                  aphroPotionNbt,
-                  'Афродизиак',
-                  'minecraft:item.bottle.fill',
-                  '§d'
-                );
-              },
-              true
-            )
-          );
+        return ctx.giveRecipeResult(
+          player,
+          aphroPotionNbt,
+          'Афродизиак',
+          'minecraft:item.bottle.fill',
+          '§d'
+        );
+      },
+      true
+    )
+  );
+
 '''
 
-          text, recipe_count = recipes_pattern.subn(new_recipes, text, count=1)
-          if recipe_count != 1:
-              raise RuntimeError('Не удалось заменить блок двух рецептов')
+          text = text[:recipe_start] + new_recipes + text[recipe_end:]
 
-          effects_pattern = re.compile(
-              r"  // ============================================\n"
-              r"  // НОВОЕ: РВОТА И АФРОДИЗИАК\n"
-              r"  // ============================================\n\n"
-              r"  this\.processSpecialPotionEffects = function \(\) \{.*?"
-              r"  \};\n\n"
-              r"  // ============================================\n"
-              r"  // ВЫДАЧА РЕЗУЛЬТАТОВ",
-              re.S,
-          )
+          handler_start_marker = "  // ============================================\n  // НОВОЕ: РВОТА И АФРОДИЗИАК"
+          handler_end_marker = "  // ============================================\n  // ВЫДАЧА РЕЗУЛЬТАТОВ"
 
-          new_effects = r'''  // ============================================
-          // СКРИПТОВЫЕ ЗЕЛЬЯ: РВОТА И АФРОДИЗИАК
-          // ============================================
+          handler_start = text.index(handler_start_marker)
+          handler_end = text.index(handler_end_marker, handler_start)
 
-          this.startVomitPotion = function (now) {
-            var playerName = String(this.player.getName());
-            var temp = this.player.getTempdata();
+          new_handler = r'''  // ============================================
+  // РВОТНАЯ НАСТОЙКА И СКРИПТОВЫЙ АФРОДИЗИАК
+  // ============================================
 
-            temp.put('RP_VomitUntil', now + 120000);
-            temp.put('RP_VomitNext', now + 350);
-            temp.put('RP_VomitActive', 1);
+  this.startVomitPotion = function (now) {
+    var playerName = String(this.player.getName());
+    var temp = this.player.getTempdata();
 
-            // Убираем техническую метку, чтобы запуск не повторялся каждый тик.
-            this.runWorldCommand(
-              this.world,
-              'effect clear ' + playerName + ' minecraft:unluck'
-            );
+    temp.put('RP_VomitUntil', now + 120000);
+    temp.put('RP_VomitNext', now + 450);
 
-            // Сильная тошнота на 120 секунд.
-            this.runWorldCommand(
-              this.world,
-              'effect give ' + playerName + ' minecraft:nausea 120 4 true'
-            );
+    this.runWorldCommand(this.world, 'effect clear ' + playerName + ' minecraft:unluck');
+    this.runWorldCommand(this.world, 'effect give ' + playerName + ' minecraft:nausea 120 4 true');
+    this.runWorldCommand(this.world, 'effect give ' + playerName + ' herbalistmod:delirium 120 1 true');
+    this.runWorldCommand(this.world, 'effect give ' + playerName + ' minecraft:hunger 120 1 true');
 
-            // Требуемый эффект Herbalist на 120 секунд.
-            this.runWorldCommand(
-              this.world,
-              'effect give ' + playerName + ' herbalistmod:delirium 120 1 true'
-            );
+    this.player.message('§2Желудок резко сводит. Вас начинает выворачивать!');
+    this.player.playSound('minecraft:entity.player.burp', 1, 0.45);
+  };
 
-            // После частой рвоты игрок быстро проголодается.
-            this.runWorldCommand(
-              this.world,
-              'effect give ' + playerName + ' minecraft:hunger 120 1 true'
-            );
+  this.startAphrodisiacPotion = function (now) {
+    var playerName = String(this.player.getName());
+    var temp = this.player.getTempdata();
 
-            this.player.message('§2Желудок резко сводит. Вас начинает выворачивать!');
-            this.player.playSound('minecraft:entity.player.burp', 1, 0.45);
-          };
+    temp.put('RP_AphroUntil', now + 90000);
+    temp.put('RP_AphroNext', now);
+    temp.put('RP_AphroMessageNext', now + 15000);
 
-          this.startAphrodisiacPotion = function (now) {
-            var playerName = String(this.player.getName());
-            var temp = this.player.getTempdata();
+    this.runWorldCommand(this.world, 'effect clear ' + playerName + ' minecraft:luck');
 
-            temp.put('RP_AphroUntil', now + 90000);
-            temp.put('RP_AphroNext', now);
-            temp.put('RP_AphroActive', 1);
+    this.player.message('§dПо телу разливается непривычное тепло...');
+    this.player.playSound('minecraft:block.amethyst_block.chime', 0.8, 1.3);
 
-            // Убираем техническую метку.
-            this.runWorldCommand(
-              this.world,
-              'effect clear ' + playerName + ' minecraft:luck'
-            );
+    this.runWorldCommand(
+      this.world,
+      'execute as ' + playerName +
+        ' at @s run particle minecraft:heart ~ ~1.15 ~ 0.65 0.8 0.65 0.03 24 force'
+    );
+  };
 
-            this.player.message('§dПо телу разливается непривычное тепло...');
-            this.player.playSound('minecraft:block.amethyst_block.chime', 0.8, 1.3);
+  this.processVomitPotion = function (now) {
+    var temp = this.player.getTempdata();
+    var until = Number(temp.get('RP_VomitUntil'));
 
-            this.runWorldCommand(
-              this.world,
-              'execute as ' +
-                playerName +
-                ' at @s run particle minecraft:heart ~ ~1.2 ~ 0.6 0.8 0.6 0.03 25 force'
-            );
-          };
+    if (isNaN(until) || until <= 0) return;
 
-          this.processVomitPotion = function (now) {
-            var temp = this.player.getTempdata();
-            var playerName = String(this.player.getName());
-            var until = Number(temp.get('RP_VomitUntil'));
+    if (now >= until) {
+      try {
+        temp.remove('RP_VomitUntil');
+        temp.remove('RP_VomitNext');
+      } catch (errClearVomit) {}
 
-            if (isNaN(until) || until <= 0) return;
+      this.player.message('§7Тошнота постепенно отступает.');
+      return;
+    }
 
-            if (now >= until) {
-              try {
-                temp.remove('RP_VomitUntil');
-                temp.remove('RP_VomitNext');
-                temp.remove('RP_VomitActive');
-              } catch (errClearVomit) {}
+    var next = Number(temp.get('RP_VomitNext'));
+    if (isNaN(next)) next = 0;
+    if (now < next) return;
 
-              this.player.message('§7Тошнота постепенно отступает.');
-              return;
-            }
+    temp.put('RP_VomitNext', now + 800 + Math.floor(Math.random() * 1200));
 
-            var next = Number(temp.get('RP_VomitNext'));
-            if (isNaN(next)) next = 0;
-            if (now < next) return;
+    var playerName = String(this.player.getName());
+    var yaw = Math.floor(Math.random() * 361) - 180;
+    var pitch = Math.floor(Math.random() * 71) - 35;
 
-            // Следующий приступ через 0,8–2 секунды.
-            temp.put('RP_VomitNext', now + 800 + Math.floor(Math.random() * 1200));
+    this.runWorldCommand(
+      this.world,
+      'execute as ' + playerName + ' at @s run tp @s ~ ~ ~ ' + yaw + ' ' + pitch
+    );
 
-            // Сильно воротит голову в случайную сторону.
-            var randomYaw = Math.floor(Math.random() * 361) - 180;
-            var randomPitch = Math.floor(Math.random() * 71) - 35;
+    this.runWorldCommand(
+      this.world,
+      'execute as ' + playerName +
+        ' at @s anchored eyes run particle minecraft:item minecraft:slime_ball ' +
+        '^ ^-0.28 ^0.45 0.18 0.12 0.18 0.10 30 force'
+    );
 
-            this.runWorldCommand(
-              this.world,
-              'execute as ' +
-                playerName +
-                ' at @s run tp @s ~ ~ ~ ' +
-                randomYaw +
-                ' ' +
-                randomPitch
-            );
+    this.runWorldCommand(
+      this.world,
+      'execute as ' + playerName +
+        ' at @s anchored eyes run particle minecraft:spore_blossom_air ' +
+        '^ ^-0.25 ^0.45 0.22 0.15 0.22 0.025 24 force'
+    );
 
-            // Рвота летит из области лица вперёд.
-            this.runWorldCommand(
-              this.world,
-              'execute as ' +
-                playerName +
-                ' at @s anchored eyes run particle minecraft:item minecraft:slime_ball ' +
-                '^ ^-0.28 ^0.45 0.18 0.12 0.18 0.10 30 force'
-            );
+    this.runWorldCommand(
+      this.world,
+      'execute as ' + playerName +
+        ' at @s run particle minecraft:sneeze ~ ~1.4 ~ 0.25 0.25 0.25 0.04 12 force'
+    );
 
-            this.runWorldCommand(
-              this.world,
-              'execute as ' +
-                playerName +
-                ' at @s anchored eyes run particle minecraft:spore_blossom_air ' +
-                '^ ^-0.25 ^0.45 0.22 0.15 0.22 0.025 24 force'
-            );
+    this.runWorldCommand(
+      this.world,
+      'execute as ' + playerName +
+        ' at @s run playsound minecraft:entity.player.burp master ' +
+        '@a[distance=..18] ~ ~ ~ 1 0.45'
+    );
 
-            this.runWorldCommand(
-              this.world,
-              'execute as ' +
-                playerName +
-                ' at @s run particle minecraft:sneeze ~ ~1.4 ~ 0.25 0.25 0.25 0.04 12 force'
-            );
+    this.runWorldCommand(
+      this.world,
+      'execute as ' + playerName +
+        ' at @s run playsound minecraft:entity.generic.drink master ' +
+        '@a[distance=..18] ~ ~ ~ 0.65 0.35'
+    );
+  };
 
-            this.runWorldCommand(
-              this.world,
-              'execute as ' +
-                playerName +
-                ' at @s run playsound minecraft:entity.player.burp master ' +
-                '@a[distance=..18] ~ ~ ~ 1 0.45'
-            );
+  this.processAphrodisiacPotion = function (now) {
+    var temp = this.player.getTempdata();
+    var until = Number(temp.get('RP_AphroUntil'));
 
-            this.runWorldCommand(
-              this.world,
-              'execute as ' +
-                playerName +
-                ' at @s run playsound minecraft:entity.generic.drink master ' +
-                '@a[distance=..18] ~ ~ ~ 0.65 0.35'
-            );
-          };
+    if (isNaN(until) || until <= 0) return;
 
-          this.processAphrodisiacPotion = function (now) {
-            var temp = this.player.getTempdata();
-            var playerName = String(this.player.getName());
-            var until = Number(temp.get('RP_AphroUntil'));
+    if (now >= until) {
+      try {
+        temp.remove('RP_AphroUntil');
+        temp.remove('RP_AphroNext');
+        temp.remove('RP_AphroMessageNext');
+      } catch (errClearAphro) {}
 
-            if (isNaN(until) || until <= 0) return;
+      this.player.message('§7Непривычный жар постепенно проходит.');
+      return;
+    }
 
-            if (now >= until) {
-              try {
-                temp.remove('RP_AphroUntil');
-                temp.remove('RP_AphroNext');
-                temp.remove('RP_AphroActive');
-              } catch (errClearAphro) {}
+    var playerName = String(this.player.getName());
+    var next = Number(temp.get('RP_AphroNext'));
+    if (isNaN(next)) next = 0;
 
-              this.player.message('§7Непривычный жар постепенно проходит.');
-              return;
-            }
+    if (now >= next) {
+      temp.put('RP_AphroNext', now + 1200);
 
-            var next = Number(temp.get('RP_AphroNext'));
-            if (isNaN(next)) next = 0;
-            if (now < next) return;
+      this.runWorldCommand(
+        this.world,
+        'execute as ' + playerName +
+          ' at @s run particle minecraft:heart ~ ~1.2 ~ 0.65 0.85 0.65 0.035 10 force'
+      );
 
-            temp.put('RP_AphroNext', now + 1200);
+      this.runWorldCommand(
+        this.world,
+        'execute as ' + playerName +
+          ' at @s run particle minecraft:cherry_leaves ~ ~1.1 ~ 0.8 0.9 0.8 0.025 12 force'
+      );
 
-            this.runWorldCommand(
-              this.world,
-              'execute as ' +
-                playerName +
-                ' at @s run particle minecraft:heart ' +
-                '~ ~1.2 ~ 0.65 0.85 0.65 0.035 10 force'
-            );
+      this.runWorldCommand(
+        this.world,
+        'execute as ' + playerName +
+          ' at @s run particle minecraft:dust 1 0.15 0.45 1 ' +
+          '~ ~1.05 ~ 0.55 0.75 0.55 0.01 10 force'
+      );
 
-            this.runWorldCommand(
-              this.world,
-              'execute as ' +
-                playerName +
-                ' at @s run particle minecraft:cherry_leaves ' +
-                '~ ~1.1 ~ 0.8 0.9 0.8 0.025 12 force'
-            );
+      if (Math.random() < 0.2) {
+        this.runWorldCommand(
+          this.world,
+          'execute as ' + playerName +
+            ' at @s run playsound minecraft:block.amethyst_block.chime player ' +
+            '@a[distance=..12] ~ ~ ~ 0.25 1.6'
+        );
+      }
+    }
 
-            this.runWorldCommand(
-              this.world,
-              'execute as ' +
-                playerName +
-                ' at @s run particle minecraft:dust 1 0.15 0.45 1 ' +
-                '~ ~1.05 ~ 0.55 0.75 0.55 0.01 10 force'
-            );
+    var messageNext = Number(temp.get('RP_AphroMessageNext'));
+    if (isNaN(messageNext)) messageNext = now + 15000;
 
-            if (Math.random() < 0.2) {
-              this.runWorldCommand(
-                this.world,
-                'execute as ' +
-                  playerName +
-                  ' at @s run playsound minecraft:block.amethyst_block.chime player ' +
-                  '@a[distance=..12] ~ ~ ~ 0.25 1.6'
-              );
-            }
-          };
+    if (now >= messageNext) {
+      temp.put('RP_AphroMessageNext', now + 18000 + Math.floor(Math.random() * 10000));
 
-          this.processSpecialPotionEffects = function () {
-            if (!this.player) return;
+      var messages = [
+        '§dСердце начинает биться заметно быстрее...',
+        '§dВзгляд невольно задерживается на окружающих...',
+        '§dПо коже вновь проходит тёплая волна...',
+      ];
 
-            var now = new Date().getTime();
+      this.player.message(messages[Math.floor(Math.random() * messages.length)]);
+    }
+  };
 
-            // Неудача XXXII — скрытая метка рвотной настойки.
-            if (this.hasEffect('minecraft:unluck', 27, 31)) {
-              this.startVomitPotion(now);
-            }
+  this.processSpecialPotionEffects = function () {
+    if (!this.player) return;
 
-            // Удача XXXII — скрытая метка афродизиака.
-            if (this.hasEffect('minecraft:luck', 26, 31)) {
-              this.startAphrodisiacPotion(now);
-            }
+    var now = new Date().getTime();
 
-            this.processVomitPotion(now);
-            this.processAphrodisiacPotion(now);
-          };
+    if (this.hasEffect('minecraft:unluck', 27, 31)) {
+      this.startVomitPotion(now);
+    }
 
-          // ============================================
-          // ВЫДАЧА РЕЗУЛЬТАТОВ'''
+    if (this.hasEffect('minecraft:luck', 26, 31)) {
+      this.startAphrodisiacPotion(now);
+    }
 
-          text, effect_count = effects_pattern.subn(new_effects, text, count=1)
-          if effect_count != 1:
-              raise RuntimeError('Не удалось заменить обработчик особых зелий')
+    this.processVomitPotion(now);
+    this.processAphrodisiacPotion(now);
+  };
+
+'''
+
+          text = text[:handler_start] + new_handler + text[handler_end:]
+
+          old_header = "// Custom NPCs 1.20.1 — Алхимический котёл\n// Полный файл для замены Player Script."
+          if old_header in text:
+              text = text.replace(
+                  old_header,
+                  "// Custom NPCs 1.20.1 — Алхимический котёл\n// Полный файл для полной замены Player Script.",
+                  1,
+              )
+
+          required = [
+              "'Рвотная настойка'",
+              "'Афродизиак'",
+              "herbalistmod:delirium 120 1 true",
+              "this.processSpecialPotionEffects();",
+              "this.processAphrodisiacPotion = function",
+          ]
+          for value in required:
+              if value not in text:
+                  raise RuntimeError('Не найден обязательный фрагмент: ' + value)
 
           output.write_text(text, encoding='utf-8')
-
-          if 'brewinandchewin:sweet_heart' in text:
-              raise RuntimeError('В новой версии осталась зависимость афродизиака от Brewin and Chewin')
-
           print('Создан:', output)
-          print('Строк:', len(text.splitlines()))
+          print('Размер:', output.stat().st_size)
           PY
 
       - name: Commit generated file
         shell: bash
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add "Алхимический_котел_рвотная_настойка_и_скриптовый_афродизиак.txt"
-          git commit -m "Собрать полный скрипт рвотной настойки и афродизиака" || exit 0
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add 'Алхимический_котел_рвотная_настойка_и_скриптовый_афродизиак.txt'
+          if git diff --cached --quiet; then
+            echo 'No changes'
+            exit 0
+          fi
+          git commit -m 'Собрать полный скрипт рвотной настойки и афродизиака'
           git push
