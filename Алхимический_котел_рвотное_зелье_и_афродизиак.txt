@@ -1,0 +1,1690 @@
+// ============================================
+// Custom NPCs 1.20.1 — Алхимический котёл
+// Полный файл для замены Player Script.
+//
+// Добавлены:
+// 1) Рвотная настойка — тошнота, голод, приступы рвоты,
+//    зелёные частицы, звуки и резкие повороты головы.
+// 2) Афродизиак — эффект Sweet Heart из Brewin' and Chewin'
+//    и периодические частицы сердец.
+//
+// ВАЖНО: порядок ингредиентов в рецептах имеет значение.
+// ============================================
+
+function RP_registerRecipes(ctx) {
+  // ============================================
+  // ОСОБЫЕ РЕЦЕПТЫ
+  // ============================================
+
+  ctx.addRecipe(
+    ctx.createCustomRecipe(
+      'Сладкий сироп',
+      ['minecraft:sugar', 'minecraft:apple'],
+      1,
+      function (player, ctx) {
+        var syrupNbt =
+          '{id:"minecraft:potion",Count:1b,tag:{' +
+          'CustomPotionColor:5575680,' +
+          'Potion:"minecraft:water",' +
+          'CustomPotionEffects:[{Id:3b,Amplifier:0b,Duration:200,ShowParticles:1b}],' +
+          'display:{Lore:[\'[{' +
+          '\\"text\\":\\"Густой сироп для напитков.\\",' +
+          '\\"italic\\":false,\\"color\\":\\"gray\\"' +
+          '}]\']}}}';
+
+        return ctx.giveRecipeResult(
+          player,
+          syrupNbt,
+          'Сладкий сироп',
+          'minecraft:item.bottle.fill',
+          '§6'
+        );
+      },
+      true
+    )
+  );
+
+  ctx.addRecipe(
+    ctx.createNbtRecipe(
+      'Крепкий чай игрока',
+      ['supplementaries:ash', 'minecraft:nether_wart'],
+      ctx.makeItemNbt('farmersrespite:strong_gamblers_tea', 1)
+    )
+  );
+
+  ctx.addRecipe(
+    ctx.createCustomRecipe(
+      'Оружейное масло',
+      ['minecraft:blaze_powder', 'minecraft:redstone'],
+      1,
+      function (player, ctx) {
+        var item = player.getMainhandItem();
+
+        if (!item || item.isEmpty() || !ctx.isPoisonableWeapon(item)) {
+          player.message('§cНужно оружие в руке.');
+          return false;
+        }
+
+        try {
+          player.playSound('minecraft:block.fire.ambient', 1, 1);
+          item.addEnchantment('fire_aspect', 3);
+          player.message('§aОружие покрыто огненным маслом.');
+          return true;
+        } catch (errOil) {
+          player.message('§cНа это оружие нельзя наложить огненное масло.');
+          return false;
+        }
+      }
+    )
+  );
+
+  ctx.addRecipe(
+    ctx.createCustomRecipe(
+      'Яд для оружия',
+      ['minecraft:spider_eye', 'minecraft:poisonous_potato'],
+      1,
+      function (player, ctx) {
+        return ctx.applyPoisonToWeapon(player, player.getMainhandItem());
+      }
+    )
+  );
+
+  ctx.addRecipe(
+    ctx.createCustomRecipe(
+      'Дикая смесь',
+      [
+        'minecraft:poisonous_potato',
+        'minecraft:fermented_spider_eye',
+        'minecraft:pufferfish',
+        'minecraft:gunpowder',
+      ],
+      1,
+      function (player, ctx) {
+        return ctx.giveModEffectPotion(
+          player,
+          'brewinandchewin:raging',
+          0,
+          600,
+          'Дикая смесь',
+          16724736,
+          'minecraft:splash_potion',
+          '§4'
+        );
+      },
+      true
+    )
+  );
+
+  // ============================================
+  // НОВОЕ: РВОТНАЯ НАСТОЙКА
+  // Порядок:
+  // 1. Гнилая плоть
+  // 2. Ядовитый картофель
+  // 3. Ферментированный паучий глаз
+  // ============================================
+
+  ctx.addRecipe(
+    ctx.createCustomRecipe(
+      'Рвотная настойка',
+      [
+        'minecraft:rotten_flesh',
+        'minecraft:poisonous_potato',
+        'minecraft:fermented_spider_eye',
+      ],
+      1,
+      function (player, ctx) {
+        var vomitPotionNbt =
+          '{id:"minecraft:potion",Count:1b,tag:{' +
+          'Potion:"minecraft:water",' +
+          'CustomPotionColor:3695387,' +
+          'CustomPotionEffects:[' +
+          // Тошнота — 15 секунд.
+          '{Id:9b,Amplifier:0b,Duration:300,ShowParticles:1b,ShowIcon:1b},' +
+          // Голод II — 12 секунд.
+          '{Id:17b,Amplifier:1b,Duration:240,ShowParticles:1b,ShowIcon:1b},' +
+          // Скрытая метка: неудача XIV. По ней скрипт понимает,
+          // что игрок выпил именно рвотную настойку.
+          '{Id:27b,Amplifier:13b,Duration:300,ShowParticles:0b,ShowIcon:0b}' +
+          ']}}';
+
+        return ctx.giveRecipeResult(
+          player,
+          vomitPotionNbt,
+          'Рвотная настойка',
+          'minecraft:item.bottle.fill',
+          '§2'
+        );
+      },
+      true
+    )
+  );
+
+  // ============================================
+  // НОВОЕ: АФРОДИЗИАК
+  // Порядок:
+  // 1. Бутылочка мёда
+  // 2. Сладкие ягоды
+  // 3. Мак
+  // Действие: Sweet Heart на 60 секунд.
+  // ============================================
+
+  ctx.addRecipe(
+    ctx.createCustomRecipe(
+      'Афродизиак',
+      [
+        'minecraft:honey_bottle',
+        'minecraft:sweet_berries',
+        'minecraft:poppy',
+      ],
+      1,
+      function (player, ctx) {
+        return ctx.giveModEffectPotion(
+          player,
+          'brewinandchewin:sweet_heart',
+          0,
+          1200,
+          'Афродизиак',
+          16733695,
+          'minecraft:potion',
+          '§d'
+        );
+      },
+      true
+    )
+  );
+
+  // ============================================
+  // СЛАБЫЕ РЕЦЕПТЫ
+  // ============================================
+
+  var weakRecipeDefs = [
+    [
+      'Слабое зелье лечения',
+      ['minecraft:red_mushroom', 'minecraft:sugar', 'minecraft:redstone'],
+      ctx.makeWeakPotionNbt('healing'),
+    ],
+    [
+      'Слабое зелье регенерации',
+      ['minecraft:ghast_tear', 'minecraft:sweet_berries'],
+      ctx.makeWeakPotionNbt('regeneration'),
+    ],
+    [
+      'Слабое зелье силы',
+      ['minecraft:blaze_powder', 'minecraft:beetroot'],
+      ctx.makeWeakPotionNbt('strength'),
+    ],
+    [
+      'Слабое зелье скорости',
+      ['minecraft:sugar', 'minecraft:rabbit_foot'],
+      ctx.makeWeakPotionNbt('swiftness'),
+    ],
+    [
+      'Слабое зелье огнестойкости',
+      ['minecraft:magma_cream', 'minecraft:clay_ball'],
+      ctx.makeWeakPotionNbt('fire_resistance'),
+    ],
+    [
+      'Слабое зелье ночного зрения',
+      ['minecraft:golden_carrot', 'minecraft:glow_berries'],
+      ctx.makeWeakPotionNbt('night_vision'),
+    ],
+    [
+      'Слабое зелье водного дыхания',
+      ['minecraft:pufferfish', 'minecraft:kelp'],
+      ctx.makeWeakPotionNbt('water_breathing'),
+    ],
+    [
+      'Слабое зелье прыгучести',
+      ['minecraft:rabbit_foot', 'minecraft:feather'],
+      ctx.makeWeakPotionNbt('leaping'),
+    ],
+    [
+      'Слабое зелье плавного падения',
+      ['minecraft:phantom_membrane', 'minecraft:feather'],
+      ctx.makeWeakPotionNbt('slow_falling'),
+    ],
+    [
+      'Слабое зелье слабости',
+      ['minecraft:fermented_spider_eye', 'minecraft:brown_mushroom'],
+      ctx.makeWeakPotionNbt('weakness'),
+    ],
+    [
+      'Слабое зелье яда',
+      ['minecraft:spider_eye', 'minecraft:red_mushroom'],
+      ctx.makeWeakPotionNbt('poison'),
+    ],
+    [
+      'Слабое зелье замедления',
+      ['minecraft:snowball', 'minecraft:fermented_spider_eye'],
+      ctx.makeWeakPotionNbt('slowness'),
+    ],
+    [
+      'Слабое зелье черепашьей стойкости',
+      ['minecraft:scute', 'minecraft:kelp'],
+      ctx.makeWeakPotionNbt('turtle_master'),
+    ],
+    [
+      'Слабое зелье вреда',
+      ['minecraft:spider_eye', 'minecraft:gunpowder'],
+      ctx.makeWeakPotionNbt('harming'),
+    ],
+    ['Мутная основа', ['minecraft:wheat', 'minecraft:wheat_seeds'], ctx.makePotionNbt('minecraft:mundane')],
+    ['Густая основа', ['minecraft:glowstone_dust', 'minecraft:sugar'], ctx.makePotionNbt('minecraft:thick')],
+    ['Неловкая основа', ['minecraft:nether_wart', 'minecraft:wheat'], ctx.makePotionNbt('minecraft:awkward')],
+    ['Водная настойка', ['minecraft:kelp', 'minecraft:sugar'], ctx.makePotionNbt('minecraft:water')],
+    ['Горькая настойка', ['minecraft:beetroot', 'minecraft:brown_mushroom'], ctx.makePotionNbt('minecraft:mundane')],
+    ['Клейкая паста', ['minecraft:slime_ball', 'minecraft:wheat'], ctx.makeItemNbt('minecraft:slime_ball', 1)],
+    ['Сухая лекарственная смесь', ['minecraft:wheat', 'minecraft:bone_meal'], ctx.makeItemNbt('minecraft:sugar', 2)],
+    ['Горючая пыль', ['minecraft:coal', 'minecraft:gunpowder'], ctx.makeItemNbt('minecraft:gunpowder', 1)],
+    ['Светящаяся крупица', ['minecraft:glowstone_dust', 'minecraft:amethyst_shard'], ctx.makeItemNbt('minecraft:glowstone_dust', 2)],
+    ['Тёмная крупица', ['minecraft:charcoal', 'minecraft:black_dye'], ctx.makeItemNbt('minecraft:black_dye', 2)],
+    ['Красная алхимическая пыль', ['minecraft:redstone', 'minecraft:red_dye'], ctx.makeItemNbt('minecraft:redstone', 2)],
+    ['Синяя алхимическая пыль', ['minecraft:lapis_lazuli', 'minecraft:blue_dye'], ctx.makeItemNbt('minecraft:lapis_lazuli', 1)],
+    ['Зелёная алхимическая пыль', ['minecraft:cactus', 'minecraft:kelp'], ctx.makeItemNbt('minecraft:green_dye', 2)],
+    ['Костяная мука с травами', ['minecraft:bone', 'minecraft:wheat_seeds'], ctx.makeItemNbt('minecraft:bone_meal', 3)],
+    ['Грубая верёвочная смесь', ['minecraft:string', 'minecraft:leather'], ctx.makeItemNbt('minecraft:string', 2)],
+    ['Мягкая кожа', ['minecraft:leather', 'minecraft:honeycomb'], ctx.makeItemNbt('minecraft:leather', 1)],
+    ['Липкий мёд', ['minecraft:honey_bottle', 'minecraft:sugar'], ctx.makeItemNbt('minecraft:honey_bottle', 1)],
+    ['Бумажный реагент', ['minecraft:paper', 'minecraft:ink_sac'], ctx.makeItemNbt('minecraft:paper', 2)],
+    ['Световые чернила', ['minecraft:ink_sac', 'minecraft:glow_ink_sac'], ctx.makeItemNbt('minecraft:glow_ink_sac', 1)],
+    ['Острый кремень', ['minecraft:flint', 'minecraft:quartz'], ctx.makeItemNbt('minecraft:flint', 2)],
+    ['Медная стружка', ['minecraft:copper_ingot', 'minecraft:flint'], ctx.makeItemNbt('minecraft:raw_copper', 1)],
+    ['Кварцевая соль', ['minecraft:quartz', 'minecraft:sugar'], ctx.makeItemNbt('minecraft:quartz', 1)],
+    ['Призмариновая соль', ['minecraft:prismarine_shard', 'minecraft:clay_ball'], ctx.makeItemNbt('minecraft:prismarine_crystals', 1)],
+    ['Морская крошка', ['minecraft:nautilus_shell', 'minecraft:kelp'], ctx.makeItemNbt('minecraft:prismarine_shard', 2)],
+    ['Эндерная крошка', ['minecraft:ender_pearl', 'minecraft:amethyst_shard'], ctx.makeItemNbt('minecraft:amethyst_shard', 1)],
+    ['Гнилая эссенция', ['minecraft:rotten_flesh', 'minecraft:brown_mushroom'], ctx.makeItemNbt('minecraft:bone_meal', 1)],
+    ['Паучья вытяжка', ['minecraft:spider_eye', 'minecraft:string'], ctx.makeItemNbt('minecraft:fermented_spider_eye', 1)],
+    ['Магмовая вытяжка', ['minecraft:magma_cream', 'minecraft:redstone'], ctx.makeItemNbt('minecraft:magma_cream', 1)],
+    ['Снежный порошок', ['minecraft:snowball', 'minecraft:clay_ball'], ctx.makeItemNbt('minecraft:white_dye', 2)],
+    ['Яичная смесь', ['minecraft:egg', 'minecraft:sugar'], ctx.makeItemNbt('minecraft:sugar', 1)],
+    ['Морковная кашица', ['minecraft:carrot', 'minecraft:wheat_seeds'], ctx.makeItemNbt('minecraft:carrot', 1)],
+    ['Картофельная кашица', ['minecraft:potato', 'minecraft:beetroot_seeds'], ctx.makeItemNbt('minecraft:potato', 1)],
+    ['Ядовитая кашица', ['minecraft:poisonous_potato', 'minecraft:brown_mushroom'], ctx.makeItemNbt('minecraft:poisonous_potato', 1)],
+    ['Сладкая ягода в сиропе', ['minecraft:sweet_berries', 'minecraft:honey_bottle'], ctx.makeItemNbt('minecraft:sweet_berries', 2)],
+    ['Светящаяся ягода в сиропе', ['minecraft:glow_berries', 'minecraft:honey_bottle'], ctx.makeItemNbt('minecraft:glow_berries', 2)],
+  ];
+
+  ctx.registerNbtRecipes(weakRecipeDefs, 'minecraft:block.brewing_stand.brew');
+}
+
+// ============================================
+// ДВИЖОК КОТЛА
+// ============================================
+
+var api = Java.type('noppes.npcs.api.NpcAPI').Instance();
+var playerObject = undefined;
+
+if (typeof RP_registerRecipes !== 'function') {
+  var RP_registerRecipes = function (ctx) {};
+}
+
+function init(event) {
+  playerObject = new getPlayerObject(event.player);
+  playerObject.init(event);
+}
+
+function interact(event) {
+  if (!event.player) return;
+  if (!playerObject) playerObject = new getPlayerObject(event.player);
+
+  playerObject.player = event.player;
+  playerObject.world = event.player.world;
+  playerObject.loadWorldInfo();
+  playerObject.processPendingDrops();
+  playerObject.interact(event);
+}
+
+function damagedEntity(event) {
+  if (!event.player) return;
+  if (!playerObject) playerObject = new getPlayerObject(event.player);
+
+  playerObject.player = event.player;
+  playerObject.world = event.player.world;
+  playerObject.loadWorldInfo();
+  playerObject.processPendingDrops();
+  playerObject.attack(event);
+}
+
+function tick(event) {
+  if (!event.player) return;
+  if (!playerObject) playerObject = new getPlayerObject(event.player);
+
+  playerObject.player = event.player;
+  playerObject.world = event.player.world;
+  playerObject.loadWorldInfo();
+  playerObject.processPendingDrops();
+  playerObject.processSpecialPotionEffects();
+}
+
+function broken(event) {
+  if (!playerObject) return;
+  playerObject.broken(event);
+}
+
+function timer(event) {
+  if (!event.player) return;
+  if (!playerObject) playerObject = new getPlayerObject(event.player);
+
+  playerObject.player = event.player;
+  playerObject.world = event.player.world;
+  playerObject.loadWorldInfo();
+  playerObject.processPendingDrops();
+  playerObject.processSpecialPotionEffects();
+}
+
+function getPlayerObject(player) {
+  this.player = player;
+  this.name = player.name;
+  this.info = {};
+  this.world = player.world;
+
+  var self = this;
+
+  this.MAX_INGREDIENTS = 5;
+  this.RECIPE_NOTIFY_RADIUS = 4;
+  this.CAULDRON_REQUIRED_SKILL = 'MAGIC';
+  this.CAULDRON_REQUIRED_LEVEL = 4;
+
+  // ============================================
+  // ДОСТУП К КОТЛУ
+  // ============================================
+
+  this.isCauldronBlock = function (block) {
+    if (!block) return false;
+    return block.name === 'minecraft:cauldron' || block.name === 'minecraft:water_cauldron';
+  };
+
+  this.getPlayerMcEntity = function (player) {
+    if (!player) return null;
+
+    try {
+      if (player.getMCEntity) return player.getMCEntity();
+    } catch (errMcEntity) {}
+
+    try {
+      if (player.getMCPlayer) return player.getMCPlayer();
+    } catch (errMcPlayer) {}
+
+    return null;
+  };
+
+  this.getReskillableSkillLevel = function (player, skillName) {
+    try {
+      var SkillModel = Java.type('net.bandit.reskillable.common.capabilities.SkillModel');
+      var Skill = Java.type('net.bandit.reskillable.common.commands.skills.Skill');
+      var mcPlayer = this.getPlayerMcEntity(player);
+      if (!mcPlayer) return -1;
+
+      var model = SkillModel.get(mcPlayer);
+      if (!model) return -1;
+
+      var skill = Skill.valueOf(String(skillName).toUpperCase());
+      return model.getSkillLevel(skill);
+    } catch (errSkill) {
+      return -1;
+    }
+  };
+
+  this.checkMagicCauldronAccess = function (event) {
+    var level = this.getReskillableSkillLevel(this.player, this.CAULDRON_REQUIRED_SKILL);
+
+    if (level >= this.CAULDRON_REQUIRED_LEVEL) return true;
+
+    if (event) event.setCanceled(true);
+
+    if (level < 0) {
+      this.player.message('§cКотёл недоступен: не удалось проверить навык MAGIC.');
+      this.player.message(
+        '§7Проверь, что стоит Reskillable и команда §f/skills get ' +
+          this.player.name +
+          ' MAGIC §7работает.'
+      );
+    } else {
+      this.player.message('§cКотёл недоступен.');
+      this.player.message(
+        '§7Нужен навык §dMAGIC §7уровня §f' +
+          this.CAULDRON_REQUIRED_LEVEL +
+          '§7 или выше. Сейчас: §f' +
+          level +
+          '§7.'
+      );
+    }
+
+    return false;
+  };
+
+  // ============================================
+  // ОБЩИЕ ХЕЛПЕРЫ
+  // ============================================
+
+  this.addRecipe = function (recipe) {
+    this.passiveRecipes.push(recipe);
+  };
+
+  this.getItemName = function (item) {
+    if (!item) return '';
+
+    try {
+      if (item.getName) return String(item.getName());
+    } catch (errGetName) {}
+
+    try {
+      return String(item.name);
+    } catch (errName) {}
+
+    return '';
+  };
+
+  this.makeItemNbt = function (itemId, count) {
+    if (!count) count = 1;
+    return '{id:"' + itemId + '",Count:' + count + 'b}';
+  };
+
+  this.makePotionNbt = function (potionId) {
+    return '{id:"minecraft:potion",Count:1b,tag:{Potion:"' + potionId + '"}}';
+  };
+
+  this.WEAK_POTION_PRESETS = {
+    healing: { color: 16262179, effects: [{ id: 10, amplifier: 0, duration: 100 }] },
+    regeneration: { color: 13458603, effects: [{ id: 10, amplifier: 0, duration: 450 }] },
+    strength: { color: 9643043, effects: [{ id: 5, amplifier: 0, duration: 1800 }] },
+    swiftness: { color: 8171462, effects: [{ id: 1, amplifier: 0, duration: 1800 }] },
+    fire_resistance: { color: 14981690, effects: [{ id: 12, amplifier: 0, duration: 1800 }] },
+    night_vision: { color: 2039587, effects: [{ id: 16, amplifier: 0, duration: 1800 }] },
+    water_breathing: { color: 3035803, effects: [{ id: 13, amplifier: 0, duration: 1800 }] },
+    leaping: { color: 2293580, effects: [{ id: 8, amplifier: 0, duration: 1800 }] },
+    slow_falling: { color: 16773073, effects: [{ id: 28, amplifier: 0, duration: 900 }] },
+    weakness: { color: 4738376, effects: [{ id: 18, amplifier: 0, duration: 900 }] },
+    poison: { color: 5149489, effects: [{ id: 19, amplifier: 0, duration: 450 }] },
+    slowness: { color: 5926017, effects: [{ id: 2, amplifier: 0, duration: 900 }] },
+    turtle_master: {
+      color: 44975,
+      effects: [
+        { id: 2, amplifier: 3, duration: 200 },
+        { id: 11, amplifier: 2, duration: 200 },
+      ],
+    },
+    harming: { color: 4393481, effects: [{ id: 19, amplifier: 0, duration: 75 }] },
+  };
+
+  this.makeWeakPotionNbt = function (potionKey) {
+    var preset = this.WEAK_POTION_PRESETS[potionKey];
+    if (!preset) return this.makePotionNbt('minecraft:water');
+
+    var parts = [];
+
+    for (var i = 0; i < preset.effects.length; i++) {
+      var effect = preset.effects[i];
+      parts.push(
+        '{Id:' +
+          effect.id +
+          'b,Amplifier:' +
+          effect.amplifier +
+          'b,Duration:' +
+          effect.duration +
+          ',ShowParticles:1b,ShowIcon:1b}'
+      );
+    }
+
+    var nbt =
+      '{id:"minecraft:potion",Count:1b,tag:{Potion:"minecraft:water",CustomPotionEffects:[' +
+      parts.join(',') +
+      ']';
+
+    if (preset.color) nbt += ',CustomPotionColor:' + preset.color;
+
+    nbt += '}}';
+    return nbt;
+  };
+
+  this.runWorldCommand = function (world, command) {
+    var cmd = command;
+    if (cmd.charAt(0) !== '/') cmd = '/' + cmd;
+
+    try {
+      api.executeCommandSilent(world, cmd);
+      return true;
+    } catch (errSilent) {}
+
+    try {
+      api.executeCommand(world, cmd);
+      return true;
+    } catch (errApi) {}
+
+    return false;
+  };
+
+  this.getPlayerServer = function (player) {
+    if (!player) return null;
+
+    try {
+      var mcEntity = player.getMCEntity();
+      if (mcEntity && mcEntity.server) return mcEntity.server;
+    } catch (errMcEntity) {}
+
+    try {
+      var mcLevel = player.world.getMCLevel();
+      if (mcLevel && mcLevel.getServer) return mcLevel.getServer();
+    } catch (errMcLevel) {}
+
+    return null;
+  };
+
+  // ============================================
+  // ЗЕЛЬЯ С ЭФФЕКТАМИ BREWIN' AND CHEWIN'
+  // ============================================
+
+  this.resolveBnCEffect = function (effectId) {
+    try {
+      var BnCEffects = Java.type('umpaz.brewinandchewin.common.registry.BnCEffects');
+      var id = String(effectId);
+
+      if (id === 'brewinandchewin:raging') return BnCEffects.RAGING.get();
+      if (id === 'brewinandchewin:tipsy') return BnCEffects.TIPSY.get();
+      if (id === 'brewinandchewin:intoxication') return BnCEffects.INTOXICATION.get();
+      if (id === 'brewinandchewin:sweet_heart') return BnCEffects.SWEET_HEART.get();
+    } catch (errBnC) {}
+
+    return null;
+  };
+
+  this.buildModEffectPotionMcStack = function (effectId, amplifier, durationTicks, color, itemId) {
+    try {
+      var MobEffectInstance = Java.type('net.minecraft.world.effect.MobEffectInstance');
+      var PotionUtils = Java.type('net.minecraft.world.item.alchemy.PotionUtils');
+      var Collections = Java.type('java.util.Collections');
+      var BuiltInRegistries = Java.type('net.minecraft.core.registries.BuiltInRegistries');
+      var ItemStack = Java.type('net.minecraft.world.item.ItemStack');
+      var ResourceLocation = Java.type('net.minecraft.resources.ResourceLocation');
+
+      var effect = this.resolveBnCEffect(effectId);
+      if (!effect) return null;
+
+      var instance = new MobEffectInstance(effect, durationTicks, amplifier);
+      var itemObject = BuiltInRegistries.ITEM.get(new ResourceLocation(String(itemId)));
+      if (!itemObject) return null;
+
+      var mcStack = new ItemStack(itemObject, 1);
+      PotionUtils.setCustomEffects(mcStack, Collections.singletonList(instance));
+
+      if (color) mcStack.getOrCreateTag().putInt('CustomPotionColor', color);
+
+      return mcStack;
+    } catch (errBuildPotion) {
+      return null;
+    }
+  };
+
+  this.applyDisplayNameToMcStack = function (mcStack, displayName, namePrefix) {
+    if (!mcStack || !displayName) return;
+
+    try {
+      var CompoundTag = Java.type('net.minecraft.nbt.CompoundTag');
+      var tag = mcStack.getOrCreateTag();
+      var display = new CompoundTag();
+      var colorName = 'white';
+
+      if (namePrefix && String(namePrefix).indexOf('§4') >= 0) colorName = 'dark_red';
+      else if (namePrefix && String(namePrefix).indexOf('§6') >= 0) colorName = 'gold';
+      else if (namePrefix && String(namePrefix).indexOf('§2') >= 0) colorName = 'dark_green';
+      else if (namePrefix && String(namePrefix).indexOf('§d') >= 0) colorName = 'light_purple';
+
+      display.putString(
+        'Name',
+        '{"text":"' + String(displayName) + '","italic":false,"color":"' + colorName + '"}'
+      );
+
+      tag.put('display', display);
+    } catch (errDisplay) {}
+  };
+
+  this.giveMcStackToPlayer = function (player, mcStack, displayName, namePrefix) {
+    if (!player || !mcStack) return false;
+
+    try {
+      var mcPlayer = player.getMCEntity();
+      if (!mcPlayer) return false;
+
+      var copy = mcStack.copy();
+      this.applyDisplayNameToMcStack(copy, displayName, namePrefix);
+
+      var added = mcPlayer.getInventory().add(copy);
+      if (!added) mcPlayer.drop(copy, false);
+
+      try {
+        mcPlayer.inventoryMenu.broadcastChanges();
+      } catch (errBroadcast) {}
+
+      try {
+        player.updatePlayerInventory();
+      } catch (errInventory) {}
+
+      player.playSound('minecraft:block.brewing_stand.brew', 1, 1);
+      player.swingMainhand();
+      return true;
+    } catch (errGive) {
+      return false;
+    }
+  };
+
+  this.giveModEffectPotion = function (
+    player,
+    effectId,
+    amplifier,
+    durationTicks,
+    displayName,
+    color,
+    itemId,
+    namePrefix
+  ) {
+    if (!player) return false;
+    if (!amplifier) amplifier = 0;
+    if (!durationTicks) durationTicks = 600;
+    if (!itemId) itemId = 'minecraft:potion';
+
+    var mcStack = this.buildModEffectPotionMcStack(
+      effectId,
+      amplifier,
+      durationTicks,
+      color,
+      itemId
+    );
+
+    if (!mcStack) {
+      player.message("§cЭффект " + displayName + " недоступен. Нужен мод Brewin' and Chewin'.");
+      return false;
+    }
+
+    if (this.giveMcStackToPlayer(player, mcStack, displayName, namePrefix)) return true;
+
+    player.message('§cНе удалось выдать зелье: ' + displayName + '.');
+    return false;
+  };
+
+  // ============================================
+  // ПРОВЕРКА АКТИВНЫХ ЭФФЕКТОВ
+  // ============================================
+
+  this.getEffectListFromEntityNbt = function (nbt) {
+    if (!nbt) return null;
+
+    try {
+      if (nbt.has('ActiveEffects')) return nbt.getList('ActiveEffects', 10);
+    } catch (errActive) {}
+
+    try {
+      if (nbt.has('active_effects')) return nbt.getList('active_effects', 10);
+    } catch (errActive2) {}
+
+    return null;
+  };
+
+  this.readEffectNumericId = function (entry) {
+    if (!entry) return -1;
+
+    try {
+      return entry.getInt('Id');
+    } catch (errInt) {}
+
+    try {
+      return entry.getByte('Id');
+    } catch (errByte) {}
+
+    return -1;
+  };
+
+  this.readEffectAmplifier = function (entry) {
+    if (!entry) return -1;
+
+    try {
+      return entry.getInt('Amplifier');
+    } catch (errInt) {}
+
+    try {
+      return entry.getByte('Amplifier');
+    } catch (errByte) {}
+
+    try {
+      return entry.getInt('amplifier');
+    } catch (errLowerInt) {}
+
+    try {
+      return entry.getByte('amplifier');
+    } catch (errLowerByte) {}
+
+    return -1;
+  };
+
+  this.effectEntryMatchesStringId = function (entry, effectId) {
+    if (!entry || !effectId) return false;
+
+    try {
+      if (String(entry.getString('id')) === String(effectId)) return true;
+    } catch (errId) {}
+
+    try {
+      if (String(entry.getString('forge:id')) === String(effectId)) return true;
+    } catch (errForgeId) {}
+
+    try {
+      if (String(entry.toJsonString()).indexOf(String(effectId)) >= 0) return true;
+    } catch (errJson) {}
+
+    return false;
+  };
+
+  this.hasEffect = function (effectId, numericId, requiredAmplifier) {
+    try {
+      var list = this.getEffectListFromEntityNbt(this.player.getEntityNbt());
+      if (!list) return false;
+
+      for (var i = 0; i < list.size(); i++) {
+        var entry = list.get(i);
+        var idMatches =
+          this.effectEntryMatchesStringId(entry, effectId) ||
+          this.readEffectNumericId(entry) === numericId;
+
+        if (!idMatches) continue;
+
+        if (requiredAmplifier === undefined || requiredAmplifier === null) return true;
+        if (this.readEffectAmplifier(entry) === requiredAmplifier) return true;
+      }
+    } catch (errEffects) {}
+
+    return false;
+  };
+
+  // ============================================
+  // НОВОЕ: РВОТА И АФРОДИЗИАК
+  // ============================================
+
+  this.processSpecialPotionEffects = function () {
+    if (!this.player) return;
+
+    var temp = this.player.getTempdata();
+    var now = new Date().getTime();
+
+    var hasNausea = this.hasEffect('minecraft:nausea', 9, null);
+    var hasVomitMarker = this.hasEffect('minecraft:unluck', 27, 13);
+
+    if (hasNausea && hasVomitMarker) {
+      if (!temp.get('RP_VomitActive')) {
+        temp.put('RP_VomitActive', 1);
+        temp.put('RP_VomitNext', now + 400);
+        this.player.message('§2Желудок резко сводит. Вас начинает выворачивать!');
+      }
+
+      var nextVomit = Number(temp.get('RP_VomitNext'));
+      if (isNaN(nextVomit)) nextVomit = 0;
+
+      if (now >= nextVomit) {
+        temp.put('RP_VomitNext', now + 800 + Math.floor(Math.random() * 900));
+
+        var playerName = String(this.player.getName());
+        var yaw = Math.floor(Math.random() * 361) - 180;
+        var pitch = Math.floor(Math.random() * 61) - 30;
+
+        this.runWorldCommand(
+          this.world,
+          'execute as ' + playerName + ' at @s run tp @s ~ ~ ~ ' + yaw + ' ' + pitch
+        );
+
+        this.runWorldCommand(
+          this.world,
+          'execute at ' +
+            playerName +
+            ' run particle minecraft:item minecraft:slime_ball ~ ~1.45 ~ 0.25 0.18 0.25 0.08 24 force'
+        );
+
+        this.runWorldCommand(
+          this.world,
+          'execute at ' +
+            playerName +
+            ' run particle minecraft:spore_blossom_air ~ ~1.35 ~ 0.25 0.18 0.25 0.02 18 force'
+        );
+
+        this.runWorldCommand(
+          this.world,
+          'execute at ' +
+            playerName +
+            ' run playsound minecraft:entity.player.burp master @a[distance=..16] ~ ~ ~ 1 0.5'
+        );
+      }
+    } else {
+      try {
+        temp.remove('RP_VomitActive');
+        temp.remove('RP_VomitNext');
+      } catch (errClearVomit) {}
+    }
+
+    var hasAphrodisiac = this.hasEffect('brewinandchewin:sweet_heart', -999, null);
+
+    if (hasAphrodisiac) {
+      var nextHeart = Number(temp.get('RP_AphrodisiacHeartNext'));
+      if (isNaN(nextHeart)) nextHeart = 0;
+
+      if (now >= nextHeart) {
+        temp.put('RP_AphrodisiacHeartNext', now + 900 + Math.floor(Math.random() * 700));
+
+        var aphroName = String(this.player.getName());
+
+        this.runWorldCommand(
+          this.world,
+          'execute at ' +
+            aphroName +
+            ' run particle minecraft:heart ~ ~1.15 ~ 0.55 0.65 0.55 0.03 8 force'
+        );
+      }
+    } else {
+      try {
+        temp.remove('RP_AphrodisiacHeartNext');
+      } catch (errClearHeart) {}
+    }
+  };
+
+  // ============================================
+  // ВЫДАЧА РЕЗУЛЬТАТОВ
+  // ============================================
+
+  this.applyRecipeDisplayName = function (item, displayName, prefix) {
+    if (!item || !displayName) return;
+
+    try {
+      item.setCustomName((prefix || '§f') + displayName);
+    } catch (errName) {}
+  };
+
+  this.giveRecipeResult = function (player, resultNbt, displayName, sound, namePrefix) {
+    try {
+      var result = player.world.createItemFromNbt(api.stringToNbt(resultNbt));
+      this.applyRecipeDisplayName(result, displayName, namePrefix);
+      player.giveItem(result);
+      player.playSound(sound || 'minecraft:entity.item.pickup', 1, 1);
+      player.swingMainhand();
+      return true;
+    } catch (errGive) {
+      player.message('§cОшибка выдачи результата рецепта: ' + errGive);
+      return false;
+    }
+  };
+
+  this.hasGlassBottle = function (player) {
+    var item = player.getMainhandItem();
+    return item && !item.isEmpty() && this.getItemName(item) === 'minecraft:glass_bottle';
+  };
+
+  this.consumeGlassBottle = function (player) {
+    var item = player.getMainhandItem();
+
+    if (!item || item.isEmpty() || this.getItemName(item) !== 'minecraft:glass_bottle') {
+      return false;
+    }
+
+    var size = item.getStackSize() - 1;
+
+    if (size <= 0) {
+      try {
+        player.setMainhandItem(player.world.createItem('minecraft:air', 1));
+      } catch (errAir) {
+        item.setStackSize(0);
+      }
+    } else {
+      item.setStackSize(size);
+    }
+
+    try {
+      player.updatePlayerInventory();
+    } catch (errInventory) {}
+
+    return true;
+  };
+
+  this.createNbtRecipe = function (name, items, resultNbt, waterDisc, sound) {
+    return {
+      name: name,
+      items: items,
+      waterDisc: waterDisc || 1,
+      needsBottle: resultNbt.indexOf('minecraft:potion') >= 0,
+      func: function (player) {
+        return self.giveRecipeResult(player, resultNbt, name, sound);
+      },
+    };
+  };
+
+  this.createCustomRecipe = function (name, items, waterDisc, func, needsBottle) {
+    return {
+      name: name,
+      items: items,
+      waterDisc: waterDisc || 1,
+      needsBottle: !!needsBottle,
+      func: function (player) {
+        return func(player, self);
+      },
+    };
+  };
+
+  this.registerNbtRecipes = function (defs, sound) {
+    for (var i = 0; i < defs.length; i++) {
+      this.addRecipe(
+        this.createNbtRecipe(
+          defs[i][0],
+          defs[i][1],
+          defs[i][2],
+          defs[i][3] || 1,
+          sound || 'minecraft:block.brewing_stand.brew'
+        )
+      );
+    }
+  };
+
+  // ============================================
+  // ЯД И ОРУЖИЕ
+  // ============================================
+
+  this.isSpartanWeaponName = function (itemName) {
+    if (!itemName) return false;
+
+    var name = String(itemName).toLowerCase();
+    if (name.indexOf('spartanweaponry:') !== 0 && name.indexOf('spartan') < 0) return false;
+
+    var keys = [
+      'dagger',
+      'longsword',
+      'katana',
+      'saber',
+      'rapier',
+      'greatsword',
+      'battleaxe',
+      'hammer',
+      'warhammer',
+      'mace',
+      'club',
+      'cestus',
+      'quarterstaff',
+      'staff',
+      'spear',
+      'pike',
+      'lance',
+      'glaive',
+      'halberd',
+      'longbow',
+      'crossbow',
+      'bow',
+      'javelin',
+      'throwing_knife',
+      'throwing_axe',
+      'tomahawk',
+      'boomerang',
+      'dynamite',
+    ];
+
+    for (var i = 0; i < keys.length; i++) {
+      if (name.indexOf(keys[i]) >= 0) return true;
+    }
+
+    return false;
+  };
+
+  this.isPoisonableWeapon = function (item) {
+    if (!item || item.isEmpty()) return false;
+
+    var itemName = this.getItemName(item);
+    if (this.isSpartanWeaponName(itemName)) return true;
+
+    try {
+      var itemMC = item.getMCItemStack().m_41720_();
+      var SwordItem = Java.type('net.minecraft.world.item.SwordItem');
+      var TieredItem = Java.type('net.minecraft.world.item.TieredItem');
+      var BowItem = Java.type('net.minecraft.world.item.BowItem');
+      var CrossbowItem = Java.type('net.minecraft.world.item.CrossbowItem');
+      var TridentItem = Java.type('net.minecraft.world.item.TridentItem');
+
+      if (
+        itemMC instanceof SwordItem ||
+        itemMC instanceof TieredItem ||
+        itemMC instanceof BowItem ||
+        itemMC instanceof CrossbowItem ||
+        itemMC instanceof TridentItem
+      ) {
+        return true;
+      }
+    } catch (errClassCheck) {}
+
+    var lowerName = String(itemName).toLowerCase();
+    var nameKeys = [
+      'sword',
+      'blade',
+      'dagger',
+      'knife',
+      'katana',
+      'saber',
+      'rapier',
+      'axe',
+      'mace',
+      'hammer',
+      'spear',
+      'pike',
+      'lance',
+      'glaive',
+      'halberd',
+      'staff',
+      'scythe',
+      'bow',
+      'crossbow',
+      'trident',
+      'javelin',
+      'boomerang',
+    ];
+
+    for (var k = 0; k < nameKeys.length; k++) {
+      if (lowerName.indexOf(nameKeys[k]) >= 0) return true;
+    }
+
+    return false;
+  };
+
+  this.applyPoisonToWeapon = function (player, item) {
+    if (!this.isPoisonableWeapon(item)) {
+      player.message(
+        '§cНужно оружие в руке. Подойдут мечи, топоры, луки, арбалеты, трезубцы и оружие Spartan Weaponry.'
+      );
+      return false;
+    }
+
+    var now = new Date().getTime();
+    var nbt = item.getNbt();
+
+    nbt.setLong('RP_PoisonExpireMs', now + 5 * 60 * 1000);
+    nbt.setInteger('RP_PoisonHits', 3);
+    nbt.setInteger('RP_PoisonDurationSeconds', 5);
+    nbt.setInteger('RP_PoisonLevel', 0);
+
+    player.playSound('minecraft:block.brewing_stand.brew', 1, 1);
+    player.swingMainhand();
+    player.message('§aОружие покрыто слабым ядом на 5 минут. Зарядов: 3.');
+    return true;
+  };
+
+  this.clearWeaponPoison = function (item) {
+    var nbt = item.getNbt();
+
+    try {
+      nbt.remove('RP_PoisonExpireMs');
+      nbt.remove('RP_PoisonHits');
+      nbt.remove('RP_PoisonDurationSeconds');
+      nbt.remove('RP_PoisonLevel');
+    } catch (errClear) {}
+  };
+
+  this.attack = function (event) {
+    var target = event.target;
+    if (!target) return;
+
+    var item = this.player.getMainhandItem();
+    if (!item || item.isEmpty()) return;
+
+    var nbt = item.getNbt();
+    var expireMs = 0;
+    var hits = 0;
+    var duration = 5;
+    var level = 0;
+
+    try {
+      expireMs = nbt.getLong('RP_PoisonExpireMs');
+      hits = nbt.getInteger('RP_PoisonHits');
+      duration = nbt.getInteger('RP_PoisonDurationSeconds');
+      level = nbt.getInteger('RP_PoisonLevel');
+    } catch (errReadPoison) {}
+
+    if (expireMs <= 0 || hits <= 0) return;
+
+    if (new Date().getTime() > expireMs) {
+      this.clearWeaponPoison(item);
+      this.player.message('§7Яд на оружии выдохся.');
+      return;
+    }
+
+    try {
+      target.addPotionEffect(19, duration, level, true);
+    } catch (errPoison) {
+      return;
+    }
+
+    hits--;
+
+    if (hits <= 0) {
+      this.clearWeaponPoison(item);
+      this.player.message('§7Яд на оружии закончился.');
+    } else {
+      nbt.setInteger('RP_PoisonHits', hits);
+      this.player.message('§2Цель отравлена. Зарядов яда: ' + hits + '.');
+    }
+  };
+
+  // ============================================
+  // РЕЦЕПТЫ
+  // ============================================
+
+  this.passiveRecipes = [];
+
+  try {
+    RP_registerRecipes(this);
+  } catch (errRecipes) {
+    this.player.message('§cОшибка загрузки рецептов котла: ' + errRecipes);
+  }
+
+  // ============================================
+  // ОСНОВНАЯ ЛОГИКА КОТЛА
+  // ============================================
+
+  this.init = function (event) {
+    this.loadWorldInfo();
+  };
+
+  this.interact = function (event) {
+    if (event.type !== 2) return;
+
+    this.loadWorldInfo();
+
+    var target = event.target;
+    var item = this.player.getMainhandItem();
+
+    if (this.isCauldronBlock(target) && !this.checkMagicCauldronAccess(event)) return;
+    if (this.checkRestartRecipe(target, item, event)) return;
+    if (this.checkCooldownInteract(target, item, event)) return;
+    if (this.checkCauldronInteract(target, item, event)) return;
+    if (this.checkIsPassiveRecipe(target, item, event)) return;
+    if (this.interactCauldron(target, item, event)) return;
+    if (this.checkWaterInteract(target, item, event)) return;
+  };
+
+  this.checkCooldownInteract = function (target, item, event) {
+    if (target.name !== 'minecraft:water_cauldron') return false;
+
+    var cauldron = this.getCauldron(target);
+
+    if (cauldron.cd > new Date().getTime()) {
+      event.setCanceled(true);
+      return true;
+    }
+
+    if (cauldron.pendingDrop && new Date().getTime() < cauldron.pendingDrop.until) {
+      event.setCanceled(true);
+      return true;
+    }
+
+    return false;
+  };
+
+  this.broken = function (event) {
+    var block = event.block;
+    var name = 'x' + block.x + 'y' + block.y + 'z' + block.z;
+
+    if (this.info.hasOwnProperty(name)) {
+      delete this.info[name];
+      this.saveWorldInfo();
+    }
+  };
+
+  this.checkRestartRecipe = function (target, item, event) {
+    if (!this.player.isSneaking() || target.name !== 'minecraft:water_cauldron') return false;
+
+    var cauldron = this.getCauldron(target);
+
+    if (cauldron.ingredients.length || cauldron.pendingDrop) {
+      this.resetCauldron(target, '§7Котёл очищен.');
+    } else {
+      this.player.message('§7В котле нет ингредиентов.');
+    }
+
+    event.setCanceled(true);
+    return true;
+  };
+
+  this.checkWaterInteract = function (target, item, event) {
+    if (
+      target.name === 'minecraft:water_cauldron' &&
+      item &&
+      !item.isEmpty() &&
+      (item.name === 'minecraft:water_bucket' ||
+        item.name === 'minecraft:potion' ||
+        item.name === 'minecraft:glass_bottle')
+    ) {
+      if (this.getCauldron(target).ingredients.length) {
+        this.player.message('Нельзя заливать или вычерпывать котёл, пока внутри есть ингредиенты.');
+        event.setCanceled(true);
+      }
+      return true;
+    }
+
+    return false;
+  };
+
+  this.checkIsPassiveRecipe = function (target, item, event) {
+    if (target.name === 'minecraft:water_cauldron') {
+      return this.checkPassiveInteract(target, event);
+    }
+
+    return false;
+  };
+
+  this.checkCauldronInteract = function (target, item, event) {
+    if (
+      target.name === 'minecraft:cauldron' &&
+      item &&
+      item.name !== 'minecraft:water_bucket' &&
+      item.name !== 'minecraft:potion' &&
+      !item.isEmpty()
+    ) {
+      return true;
+    }
+
+    return false;
+  };
+
+  this.setCauldronPlayer = function (cauldron, player) {
+    if (!cauldron || !player) return;
+
+    try {
+      cauldron.lastPlayer = String(player.getName ? player.getName() : player.name);
+    } catch (errPlayer) {
+      cauldron.lastPlayer = this.name;
+    }
+  };
+
+  this.notifyRecipeReady = function (block, recipeName) {
+    var cauldron = this.getCauldron(block);
+    var message = '§aОтвар готов: ' + recipeName + '. Заберите результат.';
+    var notified = {};
+
+    try {
+      var pos = api.getIPos(block.x + 0.5, block.y + 1, block.z + 0.5);
+      var nearby = this.world.getNearbyEntities(pos, this.RECIPE_NOTIFY_RADIUS, 1);
+
+      if (nearby && nearby.length) {
+        for (var i = 0; i < nearby.length; i++) {
+          var player = nearby[i];
+          if (!player) continue;
+
+          var playerName = String(player.getName());
+          if (notified[playerName]) continue;
+
+          notified[playerName] = true;
+          player.message(message);
+        }
+      }
+    } catch (errNearby) {}
+
+    if (cauldron.lastPlayer && !notified[cauldron.lastPlayer]) {
+      try {
+        var players = this.world.getAllPlayers();
+
+        for (var j = 0; j < players.length; j++) {
+          var lastPlayer = players[j];
+
+          if (lastPlayer && String(lastPlayer.getName()) === String(cauldron.lastPlayer)) {
+            lastPlayer.message(message);
+            break;
+          }
+        }
+      } catch (errLastPlayer) {}
+    }
+  };
+
+  this.checkPassiveInteract = function (block, event) {
+    var cauldron = this.getCauldron(block);
+    if (cauldron.ingredients.length === 0) return false;
+
+    var ingredients = cauldron.ingredients;
+    this.setCauldronPlayer(cauldron, this.player);
+
+    for (var recipe in this.passiveRecipes) {
+      var info = this.passiveRecipes[recipe];
+
+      if (!this.checkItems(info.items, ingredients)) continue;
+
+      if (info.needsBottle && !this.hasGlassBottle(this.player)) {
+        this.player.message('§cНужна стеклянная бутылка в руке.');
+        event.setCanceled(true);
+        return true;
+      }
+
+      if (info.func(this.player)) {
+        if (info.needsBottle) this.consumeGlassBottle(this.player);
+
+        this.setWaterLevel(block, this.getWaterLevel(block) - info.waterDisc);
+        if (this.getWaterLevel(block) === 0) this.clearCauldron(block);
+      }
+
+      event.setCanceled(true);
+      return true;
+    }
+
+    return false;
+  };
+
+  this.checkItems = function (targetItems, nowItems) {
+    if (targetItems.length !== nowItems.length) return false;
+
+    for (var i = 0; i < targetItems.length; i++) {
+      if (targetItems[i] !== nowItems[i]) return false;
+    }
+
+    return true;
+  };
+
+  this.setWaterLevel = function (block, level) {
+    if (level <= 0) {
+      this.clear(block);
+      return;
+    }
+
+    var IntegerClass = Java.type('java.lang.Integer');
+    var integerLevel = new IntegerClass(level);
+    var blockState = block.getMCBlockState();
+    var mcPos = block.getPos().getMCBlockPos();
+    var levelProperty = Java.type(
+      'net.minecraft.world.level.block.state.properties.BlockStateProperties'
+    ).f_61418_;
+    var newBlockState = blockState.m_61124_(levelProperty, integerLevel);
+
+    this.player.world.getMCLevel().m_7731_(mcPos, newBlockState, 3);
+  };
+
+  this.processPendingDrops = function () {
+    var now = new Date().getTime();
+    var changed = false;
+
+    for (var key in this.info) {
+      if (!this.info.hasOwnProperty(key)) continue;
+
+      var cauldron = this.info[key];
+      if (!cauldron || !cauldron.pendingDrop) continue;
+      if (now < cauldron.pendingDrop.until) continue;
+
+      var drop = cauldron.pendingDrop;
+      cauldron.pendingDrop = null;
+
+      this.despawnDropEntityAt(drop.x, drop.y, drop.z);
+
+      var block = this.player.world.getBlock(drop.x, drop.y, drop.z);
+
+      if (block && block.name === 'minecraft:water_cauldron') {
+        try {
+          this.player.world.playSoundAt(block.getPos(), 'minecraft:entity.generic.splash', 1, 1);
+          this.player.world.spawnParticle(
+            'bubble_pop',
+            drop.x + 0.5,
+            drop.y + 1,
+            drop.z + 0.5,
+            0.2,
+            0,
+            0.2,
+            0,
+            30
+          );
+        } catch (errEffects) {}
+
+        cauldron.ingredients.push(drop.itemName);
+        this.checkRecipes(cauldron, block);
+      }
+
+      changed = true;
+    }
+
+    if (changed) this.saveWorldInfo();
+  };
+
+  this.checkFire = function (block) {
+    var fireBlock = this.player.world.getBlock(block.x, block.y - 1, block.z);
+    if (!fireBlock) return false;
+
+    var fireBlockName = fireBlock.name || fireBlock.getName();
+
+    if (
+      fireBlockName !== 'minecraft:campfire' &&
+      fireBlockName !== 'minecraft:soul_campfire'
+    ) {
+      return false;
+    }
+
+    try {
+      return String(fireBlock.getMCBlockState()).indexOf('lit=true') !== -1;
+    } catch (errFireState) {
+      return false;
+    }
+  };
+
+  this.interactCauldron = function (block, item, event) {
+    if (
+      block.name !== 'minecraft:water_cauldron' ||
+      !item ||
+      item.isEmpty() ||
+      this.isBlackList(item)
+    ) {
+      return false;
+    }
+
+    event.setCanceled(true);
+
+    if (!this.checkFire(block)) {
+      this.player.message('Под котлом должен быть горящий костёр.');
+      return true;
+    }
+
+    if (this.getWaterLevel(block) !== 3) {
+      this.player.message('Котёл должен быть полным.');
+      return true;
+    }
+
+    var cauldron = this.getCauldron(block);
+    this.setCauldronPlayer(cauldron, this.player);
+
+    if (cauldron.ingredients.length < this.MAX_INGREDIENTS) {
+      cauldron.cd = new Date().getTime() + 1200;
+      this.animate(block, item);
+      item.setStackSize(item.getStackSize() - 1);
+      this.player.swingMainhand();
+    }
+
+    this.saveWorldInfo();
+    return true;
+  };
+
+  this.isBlackList = function (item) {
+    if (!item || item.isEmpty()) return false;
+    if (this.isPoisonableWeapon(item)) return true;
+
+    try {
+      var itemMC = item.getMCItemStack().m_41720_();
+      var ArmorItem = Java.type('net.minecraft.world.item.ArmorItem');
+      var ShieldItem = Java.type('net.minecraft.world.item.ShieldItem');
+
+      if (itemMC instanceof ArmorItem || itemMC instanceof ShieldItem) return true;
+    } catch (errItemClass) {}
+
+    if (item.name === 'minecraft:glass_bottle') return true;
+
+    return false;
+  };
+
+  this.dropEntityKey = function (x, y, z) {
+    return 'alch_drop_' + x + '_' + y + '_' + z;
+  };
+
+  this.despawnDropEntityAt = function (x, y, z) {
+    var key = this.dropEntityKey(x, y, z);
+    var entity = this.world.getTempdata().get(key);
+    if (!entity) return;
+
+    try {
+      entity.despawn();
+    } catch (errDespawn) {}
+
+    this.world.getTempdata().remove(key);
+  };
+
+  this.animate = function (block, item) {
+    var cauldron = this.getCauldron(block);
+    this.despawnDropEntityAt(block.x, block.y, block.z);
+
+    var entity = this.spawnItemEntity(this.player.world, item, {
+      x: block.x + 0.5,
+      y: block.y + 1.45,
+      z: block.z + 0.5,
+    });
+
+    if (entity) {
+      this.world.getTempdata().put(this.dropEntityKey(block.x, block.y, block.z), entity);
+    }
+
+    cauldron.pendingDrop = {
+      itemName: this.getItemName(item),
+      until: new Date().getTime() + 250,
+      x: block.x,
+      y: block.y,
+      z: block.z,
+    };
+  };
+
+  this.spawnItemEntity = function (world, item, pos) {
+    var entity = world.createEntity('minecraft:item');
+    var itemCopy = item.copy();
+    itemCopy.setStackSize(1);
+    entity.setItem(itemCopy);
+
+    var nbt = entity.getEntityNbt();
+    nbt.setInteger('PickupDelay', 32767);
+    nbt.setByte('NoGravity', 0);
+    nbt.setInteger('Age', 5995);
+    entity.setEntityNbt(nbt);
+
+    entity.setPosition(pos.x, pos.y, pos.z);
+    entity.spawn();
+    return entity;
+  };
+
+  this.getCauldron = function (block) {
+    var name = 'x' + block.x + 'y' + block.y + 'z' + block.z;
+
+    if (!this.info[name]) this.info[name] = new this.BlockInfo();
+
+    return this.info[name];
+  };
+
+  this.getWaterLevel = function (block) {
+    var blockState = block.getMCBlockState();
+    var levelProperty = Java.type(
+      'net.minecraft.world.level.block.state.properties.BlockStateProperties'
+    ).f_61418_;
+
+    if (blockState.m_61138_(levelProperty)) {
+      return blockState.m_61143_(levelProperty);
+    }
+
+    return 0;
+  };
+
+  this.checkRecipes = function (cauldron, block) {
+    var ingredients = cauldron.ingredients;
+
+    for (var recipe in this.passiveRecipes) {
+      var info = this.passiveRecipes[recipe];
+
+      if (this.checkItems(info.items, ingredients)) {
+        this.notifyRecipeReady(block, info.name);
+        return true;
+      }
+    }
+
+    if (cauldron.ingredients.length >= this.MAX_INGREDIENTS) {
+      this.failRecipe(block);
+    }
+  };
+
+  this.playCauldronSteamReset = function (block) {
+    var world = this.player.world;
+    var x = block.x + 0.5;
+    var y = block.y + 1;
+    var z = block.z + 0.5;
+
+    try {
+      world.playSoundAt(block.getPos(), 'minecraft:block.fire.extinguish', 1, 0.85);
+      world.playSoundAt(block.getPos(), 'minecraft:block.lava.extinguish', 0.7, 1.15);
+    } catch (errSound) {}
+
+    try {
+      world.spawnParticle('cloud', x, y, z, 0.2, 0.25, 0.2, 0.02, 30);
+      world.spawnParticle('large_smoke', x, y, z, 0.15, 0.2, 0.15, 0.01, 20);
+      world.spawnParticle('bubble_pop', x, y - 0.25, z, 0.12, 0, 0.12, 0, 12);
+    } catch (errParticle) {}
+  };
+
+  this.resetCauldron = function (block, message) {
+    var cauldron = this.getCauldron(block);
+
+    this.despawnDropEntityAt(block.x, block.y, block.z);
+    cauldron.ingredients = [];
+    cauldron.pendingDrop = null;
+    cauldron.cd = 0;
+
+    this.playCauldronSteamReset(block);
+    this.clear(block);
+    this.saveWorldInfo();
+
+    if (message) this.player.message(message);
+  };
+
+  this.failRecipe = function (block) {
+    this.clearCauldron(block);
+    this.player.world.explode(block.x + 0.5, block.y + 0.7, block.z + 0.5, 2, false, false);
+  };
+
+  this.clearCauldron = function (block) {
+    var cauldron = this.getCauldron(block);
+
+    this.despawnDropEntityAt(block.x, block.y, block.z);
+    cauldron.ingredients = [];
+    cauldron.pendingDrop = null;
+
+    this.saveWorldInfo();
+    this.clear(block);
+  };
+
+  this.clear = function (block) {
+    this.player.world.setBlock(block.x, block.y, block.z, 'minecraft:cauldron', 0);
+  };
+
+  this.loadWorldInfo = function () {
+    if (!this.world) this.world = this.player.world;
+
+    if (!this.world.getTempdata().has('worldInfo')) {
+      var raw = this.world.getStoreddata().get('worldInfo');
+      var info = {};
+
+      if (raw && String(raw).length > 0) {
+        try {
+          info = JSON.parse(raw);
+        } catch (errParse) {
+          info = {};
+        }
+      }
+
+      this.world.getTempdata().put('worldInfo', info);
+    }
+
+    this.info = this.world.getTempdata().get('worldInfo');
+  };
+
+  this.BlockInfo = function () {
+    this.ingredients = [];
+    this.cd = 0;
+    this.pendingDrop = null;
+    this.lastPlayer = null;
+  };
+
+  this.saveWorldInfo = function () {
+    this.world.getStoreddata().put('worldInfo', JSON.stringify(this.info));
+  };
+}
