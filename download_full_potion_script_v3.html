@@ -1,0 +1,519 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Скачать исправленный скрипт зелий</title>
+  <style>
+    body { font-family: Arial, sans-serif; max-width: 780px; margin: 48px auto; padding: 0 20px; background: #111; color: #eee; }
+    button { font-size: 18px; padding: 14px 22px; cursor: pointer; }
+    #status { margin-top: 18px; white-space: pre-wrap; color: #ccc; }
+    code { color: #ffd76a; }
+  </style>
+</head>
+<body>
+  <h1>Алхимический котёл — исправление зелий</h1>
+  <p>Рвотная настойка содержит реальные эффекты <code>minecraft:nausea</code> и <code>herbalistmod:delirium</code>. Афродизиак использует надёжный ванильный маркер и скриптовые эффекты.</p>
+  <button id="download">Скачать полный TXT</button>
+  <div id="status">Подготовка…</div>
+
+<script>
+const SOURCE_URL = 'https://raw.githubusercontent.com/Repipo/pipo/main/%D0%90%D0%BB%D1%85%D0%B8%D0%BC%D0%B8%D1%87%D0%B5%D1%81%D0%BA%D0%B8%D0%B9_%D0%BA%D0%BE%D1%82%D0%B5%D0%BB_%D1%80%D0%B2%D0%BE%D1%82%D0%BD%D0%BE%D0%B5_%D0%B7%D0%B5%D0%BB%D1%8C%D0%B5_%D0%B8_%D0%B0%D1%84%D1%80%D0%BE%D0%B4%D0%B8%D0%B7%D0%B8%D0%B0%D0%BA.txt';
+const OUTPUT_NAME = 'Алхимический_котел_РЕАЛЬНЫЕ_ЭФФЕКТЫ_v3.txt';
+
+const NEW_RECIPES = `  // ============================================
+  // РВОТНАЯ НАСТОЙКА
+  // Порядок: гнилая плоть -> ядовитый картофель -> ферментированный паучий глаз
+  // В подсказке эффекты скрыты, но после питья реально накладываются:
+  // minecraft:nausea V на 120 секунд
+  // herbalistmod:delirium II на 120 секунд
+  // ============================================
+
+  ctx.addRecipe(
+    ctx.createCustomRecipe(
+      'Рвотная настойка',
+      [
+        'minecraft:rotten_flesh',
+        'minecraft:poisonous_potato',
+        'minecraft:fermented_spider_eye',
+      ],
+      1,
+      function (player, ctx) {
+        return ctx.giveVomitPotion(player);
+      },
+      true
+    )
+  );
+
+  // ============================================
+  // АФРОДИЗИАК
+  // Порядок: бутылочка мёда -> сладкие ягоды -> мак
+  // Полностью скриптовый, Brewin' and Chewin' не требуется.
+  // ============================================
+
+  ctx.addRecipe(
+    ctx.createCustomRecipe(
+      'Афродизиак',
+      [
+        'minecraft:honey_bottle',
+        'minecraft:sweet_berries',
+        'minecraft:poppy',
+      ],
+      1,
+      function (player, ctx) {
+        return ctx.giveScriptAphrodisiacPotion(player);
+      },
+      true
+    )
+  );
+
+`;
+
+const NEW_HANDLER = `  // ============================================
+  // РВОТНАЯ НАСТОЙКА И СКРИПТОВЫЙ АФРОДИЗИАК
+  // Основные эффекты рвотной настойки находятся прямо в бутылке.
+  // Поэтому nausea и herbalistmod:delirium срабатывают независимо
+  // от визуальной части скрипта.
+  // ============================================
+
+  this.getRegisteredMobEffect = function (effectId) {
+    try {
+      var ForgeRegistries = Java.type('net.minecraftforge.registries.ForgeRegistries');
+      var ResourceLocation = Java.type('net.minecraft.resources.ResourceLocation');
+      return ForgeRegistries.MOB_EFFECTS.getValue(new ResourceLocation(String(effectId)));
+    } catch (errEffectRegistry) {
+      return null;
+    }
+  };
+
+  this.buildScriptPotionStack = function (itemId, color, effectDefs) {
+    try {
+      var MobEffectInstance = Java.type('net.minecraft.world.effect.MobEffectInstance');
+      var PotionUtils = Java.type('net.minecraft.world.item.alchemy.PotionUtils');
+      var BuiltInRegistries = Java.type('net.minecraft.core.registries.BuiltInRegistries');
+      var ItemStack = Java.type('net.minecraft.world.item.ItemStack');
+      var ResourceLocation = Java.type('net.minecraft.resources.ResourceLocation');
+      var ArrayList = Java.type('java.util.ArrayList');
+
+      var itemObject = BuiltInRegistries.ITEM.get(new ResourceLocation(String(itemId)));
+      if (!itemObject) return null;
+
+      var effects = new ArrayList();
+
+      for (var i = 0; i < effectDefs.length; i++) {
+        var def = effectDefs[i];
+        var effect = this.getRegisteredMobEffect(def.id);
+        if (!effect) return null;
+
+        effects.add(
+          new MobEffectInstance(
+            effect,
+            def.duration,
+            def.amplifier,
+            false,
+            def.showParticles,
+            def.showIcon
+          )
+        );
+      }
+
+      var stack = new ItemStack(itemObject, 1);
+      PotionUtils.setCustomEffects(stack, effects);
+
+      var tag = stack.getOrCreateTag();
+      tag.putInt('CustomPotionColor', color);
+
+      // 32 скрывает список эффектов в подсказке предмета.
+      tag.putInt('HideFlags', 32);
+
+      return stack;
+    } catch (errBuildScriptPotion) {
+      return null;
+    }
+  };
+
+  this.giveVomitPotion = function (player) {
+    var delirium = this.getRegisteredMobEffect('herbalistmod:delirium');
+    if (!delirium) {
+      player.message('§cНе найден эффект herbalistmod:delirium. Проверь мод Herbalist.');
+      return false;
+    }
+
+    var stack = this.buildScriptPotionStack(
+      'minecraft:potion',
+      3555072,
+      [
+        {
+          id: 'minecraft:nausea',
+          duration: 2400,
+          amplifier: 4,
+          showParticles: false,
+          showIcon: true,
+        },
+        {
+          id: 'herbalistmod:delirium',
+          duration: 2400,
+          amplifier: 1,
+          showParticles: false,
+          showIcon: true,
+        },
+        {
+          id: 'minecraft:hunger',
+          duration: 2400,
+          amplifier: 1,
+          showParticles: false,
+          showIcon: false,
+        },
+      ]
+    );
+
+    if (!stack) {
+      player.message('§cНе удалось собрать Рвотную настойку.');
+      return false;
+    }
+
+    return this.giveMcStackToPlayer(player, stack, 'Рвотная настойка', '§2');
+  };
+
+  this.giveScriptAphrodisiacPotion = function (player) {
+    var stack = this.buildScriptPotionStack(
+      'minecraft:potion',
+      16733695,
+      [
+        {
+          id: 'minecraft:luck',
+          duration: 1800,
+          amplifier: 7,
+          showParticles: false,
+          showIcon: false,
+        },
+      ]
+    );
+
+    if (!stack) {
+      player.message('§cНе удалось собрать Афродизиак.');
+      return false;
+    }
+
+    return this.giveMcStackToPlayer(player, stack, 'Афродизиак', '§d');
+  };
+
+  this.hasRegisteredEffect = function (effectId, requiredAmplifier) {
+    try {
+      var effect = this.getRegisteredMobEffect(effectId);
+      var mcPlayer = this.getPlayerMcEntity(this.player);
+      if (!effect || !mcPlayer) return false;
+
+      var instance = mcPlayer.getEffect(effect);
+      if (!instance) return false;
+
+      if (requiredAmplifier === undefined || requiredAmplifier === null) {
+        return true;
+      }
+
+      return instance.getAmplifier() === requiredAmplifier;
+    } catch (errHasRegisteredEffect) {
+      return false;
+    }
+  };
+
+  this.startVomitVisuals = function (now) {
+    var temp = this.player.getTempdata();
+    var playerName = String(this.player.getName());
+
+    temp.put('RP_VomitRunning', 1);
+    temp.put('RP_VomitNext', now);
+
+    this.player.message('§2Желудок сводит чудовищной судорогой...');
+    this.player.playSound('minecraft:entity.player.burp', 1, 0.4);
+
+    this.runWorldCommand(
+      this.world,
+      'execute as ' + playerName +
+        ' at @s anchored eyes run particle minecraft:item minecraft:slime_ball ' +
+        '^ ^-0.25 ^0.5 0.28 0.18 0.28 0.12 45 force'
+    );
+    this.runWorldCommand(
+      this.world,
+      'execute as ' + playerName +
+        ' at @s run particle minecraft:spore_blossom_air ~ ~1.35 ~ 0.55 0.45 0.55 0.03 40 force'
+    );
+  };
+
+  this.stopVomitVisuals = function () {
+    var temp = this.player.getTempdata();
+    try {
+      temp.remove('RP_VomitRunning');
+      temp.remove('RP_VomitNext');
+    } catch (errClearVomitVisuals) {}
+    this.player.message('§7Приступ рвоты наконец ослабевает.');
+  };
+
+  this.processVomitVisuals = function (now) {
+    var hasNausea = this.hasRegisteredEffect('minecraft:nausea', null);
+    var hasDelirium = this.hasRegisteredEffect('herbalistmod:delirium', null);
+    var active = hasNausea && hasDelirium;
+    var temp = this.player.getTempdata();
+    var running = Number(temp.get('RP_VomitRunning')) === 1;
+
+    if (active && !running) {
+      this.startVomitVisuals(now);
+      running = true;
+    }
+
+    if (!active) {
+      if (running) this.stopVomitVisuals();
+      return;
+    }
+
+    var next = Number(temp.get('RP_VomitNext'));
+    if (isNaN(next)) next = 0;
+    if (now < next) return;
+
+    temp.put('RP_VomitNext', now + 1100 + Math.floor(Math.random() * 1400));
+
+    var playerName = String(this.player.getName());
+    var yaw = Math.floor(Math.random() * 361) - 180;
+    var pitch = Math.floor(Math.random() * 81) - 40;
+
+    // Резко воротит голову.
+    this.runWorldCommand(
+      this.world,
+      'execute as ' + playerName + ' at @s run tp @s ~ ~ ~ ' + yaw + ' ' + pitch
+    );
+
+    // Рвота из области лица.
+    this.runWorldCommand(
+      this.world,
+      'execute as ' + playerName +
+        ' at @s anchored eyes run particle minecraft:item minecraft:slime_ball ' +
+        '^ ^-0.30 ^0.48 0.22 0.15 0.22 0.13 36 force'
+    );
+    this.runWorldCommand(
+      this.world,
+      'execute as ' + playerName +
+        ' at @s anchored eyes run particle minecraft:spore_blossom_air ' +
+        '^ ^-0.26 ^0.46 0.28 0.18 0.28 0.035 30 force'
+    );
+    this.runWorldCommand(
+      this.world,
+      'execute as ' + playerName +
+        ' at @s run particle minecraft:sneeze ~ ~1.35 ~ 0.32 0.25 0.32 0.06 16 force'
+    );
+    this.runWorldCommand(
+      this.world,
+      'execute as ' + playerName +
+        ' at @s run playsound minecraft:entity.player.burp master ' +
+        '@a[distance=..20] ~ ~ ~ 1.2 0.38'
+    );
+    this.runWorldCommand(
+      this.world,
+      'execute as ' + playerName +
+        ' at @s run playsound minecraft:entity.generic.drink master ' +
+        '@a[distance=..20] ~ ~ ~ 0.7 0.30'
+    );
+  };
+
+  this.startAphroVisuals = function (now) {
+    var temp = this.player.getTempdata();
+    var playerName = String(this.player.getName());
+
+    temp.put('RP_AphroRunning', 1);
+    temp.put('RP_AphroNext', now);
+    temp.put('RP_AphroMessageNext', now + 12000);
+
+    this.player.message('§dПо телу разливается обжигающее тепло...');
+    this.player.playSound('minecraft:block.amethyst_block.chime', 1, 1.25);
+    this.player.playSound('minecraft:block.note_block.chime', 0.8, 1.65);
+
+    this.runWorldCommand(
+      this.world,
+      'execute as ' + playerName +
+        ' at @s run particle minecraft:heart ~ ~1.2 ~ 1.0 1.2 1.0 0.08 55 force'
+    );
+    this.runWorldCommand(
+      this.world,
+      'execute as ' + playerName +
+        ' at @s run particle minecraft:cherry_leaves ~ ~1.1 ~ 1.2 1.2 1.2 0.05 45 force'
+    );
+  };
+
+  this.stopAphroVisuals = function () {
+    var temp = this.player.getTempdata();
+    try {
+      temp.remove('RP_AphroRunning');
+      temp.remove('RP_AphroNext');
+      temp.remove('RP_AphroMessageNext');
+    } catch (errClearAphroVisuals) {}
+    this.player.message('§7Жар постепенно покидает тело.');
+  };
+
+  this.processAphroVisuals = function (now) {
+    var active = this.hasRegisteredEffect('minecraft:luck', 7);
+    var temp = this.player.getTempdata();
+    var running = Number(temp.get('RP_AphroRunning')) === 1;
+
+    if (active && !running) {
+      this.startAphroVisuals(now);
+      running = true;
+    }
+
+    if (!active) {
+      if (running) this.stopAphroVisuals();
+      return;
+    }
+
+    var playerName = String(this.player.getName());
+    var next = Number(temp.get('RP_AphroNext'));
+    if (isNaN(next)) next = 0;
+
+    if (now >= next) {
+      temp.put('RP_AphroNext', now + 900);
+
+      this.runWorldCommand(
+        this.world,
+        'execute as ' + playerName +
+          ' at @s run particle minecraft:heart ~ ~1.2 ~ 0.8 0.95 0.8 0.045 16 force'
+      );
+      this.runWorldCommand(
+        this.world,
+        'execute as ' + playerName +
+          ' at @s run particle minecraft:cherry_leaves ~ ~1.0 ~ 0.9 1.0 0.9 0.035 18 force'
+      );
+      this.runWorldCommand(
+        this.world,
+        'execute as ' + playerName +
+          ' at @s run particle minecraft:dust 1 0.08 0.38 1 ' +
+          '~ ~1.05 ~ 0.75 0.9 0.75 0.02 18 force'
+      );
+
+      if (Math.random() < 0.25) {
+        this.runWorldCommand(
+          this.world,
+          'execute as ' + playerName +
+            ' at @s run playsound minecraft:block.amethyst_block.chime player ' +
+            '@a[distance=..14] ~ ~ ~ 0.35 1.55'
+        );
+      }
+    }
+
+    var messageNext = Number(temp.get('RP_AphroMessageNext'));
+    if (isNaN(messageNext)) messageNext = now + 12000;
+
+    if (now >= messageNext) {
+      temp.put('RP_AphroMessageNext', now + 16000 + Math.floor(Math.random() * 9000));
+      var messages = [
+        '§dСердце начинает биться гораздо быстрее...',
+        '§dВзгляд невольно задерживается на окружающих...',
+        '§dПо коже проходит новая волна горячего покалывания...',
+        '§dДыхание становится заметно чаще...',
+      ];
+      this.player.message(messages[Math.floor(Math.random() * messages.length)]);
+    }
+  };
+
+  this.processSpecialPotionEffects = function () {
+    if (!this.player) return;
+    var now = new Date().getTime();
+    this.processVomitVisuals(now);
+    this.processAphroVisuals(now);
+  };
+
+`;
+
+function replaceBetween(text, startMarker, endMarker, replacement) {
+  const start = text.indexOf(startMarker);
+  if (start < 0) throw new Error('Не найден маркер начала: ' + startMarker.split('\n').pop());
+  const end = text.indexOf(endMarker, start);
+  if (end < 0) throw new Error('Не найден маркер конца: ' + endMarker.split('\n').pop());
+  return text.slice(0, start) + replacement + text.slice(end);
+}
+
+function ensureEventCall(text, functionName) {
+  const start = text.indexOf('function ' + functionName + '(event)');
+  if (start < 0) throw new Error('Не найдена функция ' + functionName);
+  const end = text.indexOf('\n}', start) + 2;
+  let block = text.slice(start, end);
+  if (!block.includes('playerObject.processSpecialPotionEffects();')) {
+    block = block.replace(
+      '  playerObject.processPendingDrops();\n}',
+      '  playerObject.processPendingDrops();\n  playerObject.processSpecialPotionEffects();\n}'
+    );
+  }
+  return text.slice(0, start) + block + text.slice(end);
+}
+
+async function buildAndDownload() {
+  const status = document.getElementById('status');
+  const button = document.getElementById('download');
+  button.disabled = true;
+  status.textContent = 'Загружаю полный исходный скрипт…';
+
+  try {
+    const response = await fetch(SOURCE_URL, { cache: 'no-store' });
+    if (!response.ok) throw new Error('Не удалось загрузить исходник: HTTP ' + response.status);
+    let text = await response.text();
+
+    text = replaceBetween(
+      text,
+      '  // ============================================\n  // НОВОЕ: РВОТНАЯ НАСТОЙКА',
+      '  // ============================================\n  // СЛАБЫЕ РЕЦЕПТЫ',
+      NEW_RECIPES
+    );
+
+    text = replaceBetween(
+      text,
+      '  // ============================================\n  // НОВОЕ: РВОТА И АФРОДИЗИАК',
+      '  // ============================================\n  // ВЫДАЧА РЕЗУЛЬТАТОВ',
+      NEW_HANDLER
+    );
+
+    text = ensureEventCall(text, 'tick');
+    text = ensureEventCall(text, 'timer');
+
+    // Добавляем поддержку цветов названий, если её ещё нет.
+    if (!text.includes("indexOf('§d')")) {
+      text = text.replace(
+        "      } else if (namePrefix && String(namePrefix).indexOf('§6') >= 0) {\n        colorName = 'gold';\n      }",
+        "      } else if (namePrefix && String(namePrefix).indexOf('§6') >= 0) {\n        colorName = 'gold';\n      } else if (namePrefix && String(namePrefix).indexOf('§2') >= 0) {\n        colorName = 'dark_green';\n      } else if (namePrefix && String(namePrefix).indexOf('§d') >= 0) {\n        colorName = 'light_purple';\n      }"
+      );
+    }
+
+    const required = [
+      "ctx.giveVomitPotion(player)",
+      "id: 'herbalistmod:delirium'",
+      "id: 'minecraft:nausea'",
+      "new MobEffectInstance(",
+      "this.hasRegisteredEffect('herbalistmod:delirium'",
+      'playerObject.processSpecialPotionEffects();',
+      'this.processAphroVisuals = function'
+    ];
+
+    for (const value of required) {
+      if (!text.includes(value)) throw new Error('Проверка не пройдена: ' + value);
+    }
+
+    const blob = new Blob(['\ufeff', text], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = OUTPUT_NAME;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+
+    status.textContent = 'Готово. Скачан полный TXT с реальными nausea и herbalistmod:delirium.';
+  } catch (error) {
+    console.error(error);
+    status.textContent = 'Ошибка: ' + error.message;
+  } finally {
+    button.disabled = false;
+  }
+}
+
+document.getElementById('download').addEventListener('click', buildAndDownload);
+window.addEventListener('load', () => setTimeout(buildAndDownload, 500));
+</script>
+</body>
+</html>
